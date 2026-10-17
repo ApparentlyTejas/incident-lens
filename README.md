@@ -27,7 +27,7 @@ flowchart LR
 
 ## Quickstart (clean checkout)
 
-Requires Python 3.10+, `curl`, `unzip`. On Linux x86_64 the script downloads and starts SereneDB itself; elsewhere install SereneDB from <https://serenedb.com/download> and start it on `127.0.0.1:7890` first.
+Requires Python 3.10+, `curl`, `unzip`. The script starts SereneDB itself either way: natively on Linux x86_64, or via the official Docker image everywhere else (macOS, Windows, Linux ARM) - just have Docker installed and running. If neither is available, install SereneDB from <https://serenedb.com/download> and start it on `127.0.0.1:7890` first.
 
 ```bash
 git clone <this repo> && cd incident-lens
@@ -90,24 +90,27 @@ Every answer has **Observed** (numbers with scope and `[E-id]`), **Hypotheses** 
 
 ## Evaluation
 
-`eval/golden.yaml` holds 15 golden questions (5 engineer, 5 lead, 5 manager, including refusal, truncation and prompt-injection cases); `eval/ground_truth.py` computes reference numbers with plain SQL; `tests/` checks tool output against plain SQL. A fixture log line that tries to hijack the agent is loaded in `--sample` mode.
+`eval/golden.yaml` holds 15 golden questions (5 engineer, 5 lead, 5 manager, including refusal, truncation and prompt-injection cases); `eval/ground_truth.py` computes reference numbers with plain SQL; `eval/run.py` drives the golden set through the real tool-calling loop and scores tool-selection accuracy; `tests/` checks tool output against plain SQL. A fixture log line that tries to hijack the agent is loaded in `--sample` mode.
+
+**Scale:** `eval/benchmark.py` times every tool against the full 4.7M + 207K-row corpus (20 calls each, cold call excluded) - results and a root-cause analysis of the one slow outlier (relevance-ranked search combined with a time filter) are in [`eval/benchmark_results.md`](eval/benchmark_results.md).
+
+**Grounded vs. ungrounded:** [`investigation/llm_vs_incident_lens.md`](investigation/llm_vs_incident_lens.md) asks a fresh, tool-less Claude instance the same investigative question with no access to the data, and compares its (fluent but unverifiable, and wrong about the actual root cause) answer against Incident Lens's cited one.
 
 ## Status and known limitations (read this)
 
-What has been executed (SereneDB 26.10.1, Linux x86_64, on the 2,000-line samples):
+What has been executed, on the **full real corpus** (SereneDB 26.10.1; macOS arm64 via the official Docker image - `scripts/start_serenedb.sh` falls back to Docker automatically when the native Linux binary isn't available):
 
 | Check | Status |
 |---|---|
-| Schema, inverted index, phrase/terms/any/fuzzy search, BM25 + highlight, window functions, percentiles, `date_trunc`, read-only role | executed, working |
-| All 10 tools, 15 pytest tests against plain-SQL ground truth, real stdio MCP round-trip | executed, passing |
-| Synthetic scale smoke test (sample replicated to 1M rows): all tools < 0.25 s, index build < 1 s | executed; **synthetic and repetitive - not a benchmark** |
-| Full 4.7M-line BGL + OpenStack load, real timings, real worked investigation | **not run in the authoring sandbox (Zenodo was unreachable); run `./scripts/setup.sh` and record timings here** |
-| Raw-file layout assumptions in `setup.sh` (file names inside the zip/tar, `anomaly_labels.txt` format) | tolerant parsing, **unverified against the real archives** |
-| `cli/ask.py` Anthropic API loop, `eval/run.py`-style golden run with Claude | **not exercised** (no API key); `--dry-run` works |
+| Full load: 4,747,945 BGL rows + 207,812 OpenStack rows from the real Zenodo archives, parsed, loaded, indexed | **executed** - tables loaded in 3.6-9.2 s, inverted indexes built + refreshed in 5.9-9.6 s across repeated runs |
+| Schema, inverted index, phrase/terms/any/fuzzy search, BM25 + highlight, window functions, percentiles, `date_trunc`, read-only role | executed, working, at full scale |
+| All 10 tools, 15 pytest tests against plain-SQL ground truth, real stdio MCP round-trip | executed, passing (against both the 2k samples and the full corpus) |
+| Worked investigation (`investigation/worked_investigation.md`) | **executed against the full corpus** - a real recurring BGL failure pattern (ciod job-launch failures, 1,024 nodes, 52,763 episodes) walked through all three roles with real evidence ids; checked with `eval/verify_answer.py` |
+| `eval/run.py` golden-set runner, `cli/ask.py` Anthropic API loop | built and dry-run tested; **not exercised against the live API** (no key in this environment) - `--dry-run` works end to end |
 
-Other limitations: episodes are a counting convention (gap default 300 s, per node/service); BGL contains entries with node `NULL` which merge in episode counts (flagged in the result); OpenStack latency exists only on nova-api request lines; the logs do not establish root cause, downtime or customer impact; priority scores rank observed frequency and spread only.
+**Bugs found and fixed by testing against the full real data instead of trusting the code against the 2k samples alone:** the OpenStack anomaly-label parser was joining the wrong id type (instance ids against request ids) and silently labelling almost nothing as anomalous; the BGL parser dropped lines with no message text and mis-shifted fields on the small number of lines with no specific node, undercounting FATAL entries; a handful of lines carry literal binary corruption in the raw file itself and are now detected and skipped rather than guessed at; the stdio smoke test wasn't forwarding `SERENEDB_DSN` to the spawned server, matching how a real MCP client config works.
 
-Index timings (fill from the full load): tables `__ s`, index build `__ s`.
+Other limitations: episodes are a counting convention (gap default 300 s, per node/service); OpenStack latency exists only on nova-api request lines; the logs do not establish root cause, downtime or customer impact; priority scores rank observed frequency and spread only.
 
 ## Citations
 
