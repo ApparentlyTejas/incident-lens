@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Incident Lens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090d; --bg-grid:#0c1016;
+  --surface:#0f141b; --surface-raised:#141b24; --surface-hi:#1a232e;
+  --border:#212b36; --border-bright:#2c3a49;
+  --text:#dde6ee; --text-dim:#8b97a4; --text-mute:#525d68;
+  --cyan:#35e4e0; --cyan-dim:#0f6f6e; --cyan-glow:rgba(53,228,224,.35);
+  --amber:#f2a93c; --amber-dim:#7a5a1e;
+  --good:#39d98a; --critical:#ff5f6d; --warn:#f2c94c;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --display:'Rajdhani',sans-serif;
+  --body:'IBM Plex Sans',sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text); font-family:var(--body);
+  padding-left:max(0px, env(safe-area-inset-left,0px)); padding-right:max(0px, env(safe-area-inset-right,0px));
+  background-image:
+    radial-gradient(circle at 15% -10%, rgba(53,228,224,.07), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(242,169,60,.05), transparent 45%),
+    linear-gradient(var(--bg-grid) 1px, transparent 1px), linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+  background-size: auto, auto, 28px 28px, 28px 28px;
+  background-position: 0 0, 0 0, -1px -1px, -1px -1px;
+}
+::selection{background:var(--cyan-glow); color:#fff}
+a{color:var(--cyan)}
+button{font-family:var(--body)}
+
+/* ---------------- top bar ---------------- */
+.topbar{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+  padding:14px 22px; padding-top:calc(14px + env(safe-area-inset-top,0px));
+  background:rgba(7,9,13,.86); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex; align-items:center; gap:10px; margin-right:6px}
+.brand-mark{
+  width:30px; height:30px; border-radius:7px; border:1px solid var(--border-bright);
+  background:linear-gradient(145deg, var(--surface-hi), var(--surface));
+  display:flex; align-items:center; justify-content:center; position:relative; flex:none;
+  box-shadow:0 0 18px -4px var(--cyan-glow) inset;
+}
+.brand-mark::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px 2px var(--cyan-glow);animation:pulse 2.2s ease-in-out infinite}
+.brand-text{display:flex; flex-direction:column; line-height:1.05}
+.brand-text b{font-family:var(--display); font-weight:700; font-size:19px; letter-spacing:.06em; color:var(--text)}
+.brand-text span{font-size:10.5px; color:var(--text-mute); letter-spacing:.14em; text-transform:uppercase}
+.stat-strip{display:flex; gap:22px; flex-wrap:wrap; margin-left:4px; transition:opacity .2s}
+.stat-strip.unreachable{opacity:.45}
+.stat-strip.unreachable .n{color:var(--amber)}
+.stat{display:flex; flex-direction:column; min-width:72px}
+.stat .n{font-family:var(--mono); font-weight:700; font-size:16px; color:var(--text); font-variant-numeric:tabular-nums}
+.stat .l{font-size:10px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.1em; margin-top:1px}
+.topbar-right{margin-left:auto; display:flex; align-items:center; gap:12px}
+.chain-pill{
+  display:flex; align-items:center; gap:7px; padding:6px 12px; border-radius:100px;
+  border:1px solid var(--border-bright); background:var(--surface); font-size:11.5px; font-family:var(--mono);
+  letter-spacing:.04em; cursor:default;
+}
+.chain-pill .dot{width:7px;height:7px;border-radius:50%}
+.chain-pill.ok .dot{background:var(--good); box-shadow:0 0 8px 1px rgba(57,217,138,.6)}
+.chain-pill.bad .dot{background:var(--critical); box-shadow:0 0 8px 1px rgba(255,95,109,.6); animation:blink .6s steps(2) infinite}
+.chain-pill.pending .dot{background:var(--text-mute)}
+.btn{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; padding:7px 14px; border-radius:8px;
+  border:1px solid var(--border-bright); background:var(--surface); color:var(--text-dim); cursor:pointer;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.btn:hover{border-color:var(--cyan); color:var(--cyan); background:var(--surface-hi)}
+.btn.danger:hover{border-color:var(--critical); color:var(--critical)}
+.btn:disabled{opacity:.4; cursor:default}
+
+@keyframes pulse{0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.5; transform:scale(.78)}}
+@keyframes blink{50%{opacity:.15}}
+
+/* ---------------- layout ---------------- */
+.layout{display:grid; grid-template-columns:minmax(0,1fr) minmax(320px, 420px); gap:0; align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+.panel-head{
+  display:flex; align-items:center; gap:10px; padding:16px 22px 12px;
+  font-family:var(--display); font-weight:600; letter-spacing:.08em; font-size:13px; color:var(--text-dim); text-transform:uppercase;
+}
+.panel-head .line{flex:1; height:1px; background:linear-gradient(90deg, var(--border-bright), transparent)}
+
+/* ---------------- chat column ---------------- */
+.chat-col{border-right:1px solid var(--border); min-height:100vh; display:flex; flex-direction:column}
+.roles{display:flex; gap:8px; padding:0 22px 14px}
+.role-btn{
+  flex:1; padding:10px 8px; border-radius:9px; border:1px solid var(--border); background:var(--surface);
+  color:var(--text-dim); font-family:var(--display); font-weight:600; letter-spacing:.04em; font-size:13px; cursor:pointer;
+  transition:all .15s; text-align:center;
+}
+.role-btn small{display:block; font-family:var(--body); font-weight:400; font-size:10px; color:var(--text-mute); letter-spacing:.02em; margin-top:2px; text-transform:none}
+.role-btn.active{border-color:var(--cyan); color:var(--cyan); background:rgba(53,228,224,.06); box-shadow:0 0 0 1px var(--cyan) inset}
+.role-btn.active small{color:var(--cyan-dim)}
+
+.transcript{flex:1; padding:4px 22px 10px; display:flex; flex-direction:column; gap:14px; overflow-y:auto}
+.msg{max-width:92%; animation:rise .3s ease both}
+@keyframes rise{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+.msg.user{align-self:flex-end}
+.msg .bubble{padding:12px 14px; border-radius:11px; font-size:14px; line-height:1.55}
+.msg.user .bubble{background:rgba(53,228,224,.08); border:1px solid var(--cyan-dim); color:var(--text)}
+.msg.assistant .bubble{background:var(--surface); border:1px solid var(--border)}
+.msg .bubble p{margin:0 0 8px}
+.msg .bubble p:last-child{margin-bottom:0}
+.contract-block{border-left:3px solid var(--border-bright); padding:2px 0 2px 12px; margin:10px 0}
+.contract-block.observed{border-color:var(--cyan)}
+.contract-block.hypotheses{border-color:var(--amber)}
+.contract-block.checks{border-color:var(--good)}
+.contract-block.unknown{border-color:var(--text-mute)}
+.contract-block .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; color:var(--text-mute); text-transform:uppercase; display:block; margin-bottom:4px}
+.cite{font-family:var(--mono); font-size:11.5px; color:var(--cyan); background:rgba(53,228,224,.08); padding:1px 5px; border-radius:4px; cursor:pointer; white-space:nowrap}
+.cite:hover{background:rgba(53,228,224,.2)}
+
+.thinking{font-family:var(--mono); font-size:12px; color:var(--text-mute); padding:2px 2px 6px; font-style:italic}
+.typing-dots{display:inline-flex; gap:3px; align-items:center; padding:10px 14px}
+.typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--text-mute); animation:tdot 1s infinite}
+.typing-dots span:nth-child(2){animation-delay:.15s} .typing-dots span:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,60%,100%{opacity:.25; transform:translateY(0)} 30%{opacity:1; transform:translateY(-3px)}}
+
+.running-tool{
+  display:flex; align-items:center; gap:9px; padding:10px 14px; font-family:var(--mono); font-size:12px;
+  color:var(--cyan); background:rgba(53,228,224,.05); border:1px solid var(--cyan-dim); border-radius:9px;
+  animation:rise .25s ease both;
+}
+.running-tool .spinner{width:11px; height:11px; border-radius:50%; border:2px solid rgba(53,228,224,.25); border-top-color:var(--cyan); flex:none; animation:spin .7s linear infinite}
+.running-tool b{color:var(--text); font-weight:600}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.composer{padding:14px 22px calc(16px + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--border); display:flex; gap:10px}
+.composer input{
+  flex:1; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px;
+  padding:12px 14px; font-size:14px; font-family:var(--body);
+}
+.composer input:focus{outline:none; border-color:var(--cyan)}
+.composer button{
+  background:var(--cyan); color:#032; border:none; border-radius:10px; padding:0 20px; font-family:var(--display);
+  font-weight:700; letter-spacing:.04em; cursor:pointer; transition:filter .15s;
+}
+.composer button:hover{filter:brightness(1.1)}
+.composer button:disabled{opacity:.4; cursor:default}
+.presets{display:flex; gap:6px; padding:0 22px 12px; flex-wrap:wrap}
+.preset{font-family:var(--mono); font-size:11px; color:var(--text-mute); border:1px dashed var(--border-bright); border-radius:7px; padding:5px 9px; cursor:pointer}
+.preset:hover{color:var(--cyan); border-color:var(--cyan)}
+
+/* ---------------- ledger column ---------------- */
+.ledger-col{min-height:100vh; display:flex; flex-direction:column; background:linear-gradient(180deg, rgba(53,228,224,.02), transparent 180px)}
+.ledger-feed{flex:1; padding:0 18px 20px; overflow-y:auto; position:relative}
+.ledger-empty{color:var(--text-mute); font-size:12.5px; font-family:var(--mono); padding:30px 4px; line-height:1.7}
+.ecard{
+  position:relative; margin-left:18px; margin-bottom:0; padding:12px 14px 13px; border-radius:10px;
+  border:1px solid var(--border); background:var(--surface-raised); animation:slidein .35s cubic-bezier(.2,.9,.3,1) both;
+  cursor:pointer;
+}
+@keyframes slidein{from{opacity:0; transform:translateX(14px)} to{opacity:1; transform:none}}
+.ecard + .ecard{margin-top:14px}
+.chain-rail{position:absolute; left:-18px; top:-14px; bottom:-14px; width:18px}
+.ecard:first-child .chain-rail{top:8px}
+.chain-rail::before{content:""; position:absolute; left:8px; top:0; bottom:0; width:1px; background:var(--border-bright)}
+.chain-node{position:absolute; left:4px; top:18px; width:9px; height:9px; border-radius:50%; background:var(--bg); border:2px solid var(--cyan); box-shadow:0 0 6px 0 var(--cyan-glow)}
+.ecard-head{display:flex; align-items:baseline; gap:8px; margin-bottom:6px}
+.ecard-tool{font-family:var(--display); font-weight:700; font-size:14px; color:var(--text); letter-spacing:.02em}
+.ecard-eid{font-family:var(--mono); font-size:10.5px; color:var(--cyan); background:rgba(53,228,224,.08); padding:1px 6px; border-radius:5px; margin-left:auto}
+.ecard-ms{font-family:var(--mono); font-size:10.5px; color:var(--text-mute)}
+.ecard-row{display:flex; justify-content:space-between; align-items:baseline; margin-top:4px}
+.ecard-metric{font-family:var(--mono); font-size:22px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums}
+.ecard-metric small{font-size:10px; font-weight:400; color:var(--text-mute); margin-left:5px; text-transform:uppercase; letter-spacing:.06em}
+.ecard-flags{display:flex; gap:5px}
+.flag{font-size:9.5px; font-family:var(--mono); padding:2px 6px; border-radius:5px; letter-spacing:.05em; text-transform:uppercase}
+.flag.trunc{background:rgba(242,169,60,.12); color:var(--amber)}
+.flag.full{background:rgba(57,217,138,.1); color:var(--good)}
+.ecard-hash{font-family:var(--mono); font-size:9.5px; color:var(--text-mute); margin-top:8px; display:flex; align-items:center; gap:5px; overflow:hidden}
+.ecard-hash .h{color:var(--cyan-dim)}
+.ecard-sql{
+  display:none; font-family:var(--mono); font-size:11px; color:var(--text-dim); background:var(--bg); border:1px solid var(--border);
+  border-radius:7px; padding:9px 10px; margin-top:9px; white-space:pre-wrap; word-break:break-word; max-height:220px; overflow:auto; line-height:1.5;
+}
+.ecard.open .ecard-sql{display:block}
+.ecard-scope{font-size:10.5px; color:var(--text-mute); margin-top:6px}
+
+/* ---------------- tamper modal ---------------- */
+.modal-backdrop{position:fixed; inset:0; background:rgba(5,7,10,.72); display:none; align-items:center; justify-content:center; z-index:50; padding:20px}
+.modal-backdrop.show{display:flex}
+.modal{width:min(560px,100%); background:var(--surface-raised); border:1px solid var(--border-bright); border-radius:14px; padding:22px; box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+.modal h3{font-family:var(--display); margin:0 0 4px; font-size:19px; letter-spacing:.02em}
+.modal p.sub{color:var(--text-dim); font-size:13px; margin:0 0 16px}
+.tamper-step{display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--border)}
+.tamper-step:first-of-type{border-top:none}
+.tamper-step .ix{font-family:var(--mono); color:var(--text-mute); font-size:12px; width:18px; flex:none}
+.tamper-step .body{flex:1; font-size:13px; color:var(--text-dim)}
+.tamper-step .body b{color:var(--text)}
+.tamper-result{margin-top:14px; padding:12px 14px; border-radius:9px; font-family:var(--mono); font-size:12.5px; line-height:1.7}
+.tamper-result.bad{background:rgba(255,95,109,.08); border:1px solid rgba(255,95,109,.35); color:#ffb3b9}
+.tamper-result.good{background:rgba(57,217,138,.08); border:1px solid rgba(57,217,138,.35); color:#b9f3d3}
+.modal-close{margin-top:16px; width:100%}
+
+/* evidence detail modal */
+.ev-modal pre{white-space:pre-wrap; word-break:break-word; font-family:var(--mono); font-size:11.5px; color:var(--text-dim); background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; max-height:50vh; overflow:auto}
+
+.scroll-fade{position:sticky; bottom:0; height:0}
+
+/* ---------------- report card (generate_report's special-cased evidence card) ---------------- */
+.ecard.report{border-color:var(--amber-dim); background:linear-gradient(165deg, rgba(242,169,60,.06), var(--surface-raised) 55%)}
+.ecard.report .chain-node{border-color:var(--amber)}
+.ecard.report .ecard-eid{color:var(--amber); background:rgba(242,169,60,.1)}
+.report-title{font-family:var(--display); font-weight:700; font-size:15px; color:var(--text); margin-top:2px}
+.report-view-btn{
+  margin-top:9px; width:100%; font-family:var(--mono); font-size:11px; letter-spacing:.03em; padding:7px 0;
+  border-radius:7px; border:1px solid var(--amber-dim); background:rgba(242,169,60,.08); color:var(--amber); cursor:pointer;
+}
+.report-view-btn:hover{background:rgba(242,169,60,.16)}
+.report-modal-body{white-space:pre-wrap; word-break:break-word; font-family:var(--body); font-size:13.5px; line-height:1.6; color:var(--text-dim);
+  background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:16px; max-height:60vh; overflow:auto}
+.report-modal-body h1{font-family:var(--display); font-size:19px; color:var(--text); margin:0 0 10px}
+.report-modal-body h2{font-family:var(--display); font-size:14px; color:var(--cyan); letter-spacing:.04em; text-transform:uppercase; margin:18px 0 8px; border-top:1px solid var(--border); padding-top:14px}
+.report-modal-body h3{font-family:var(--mono); font-size:12.5px; color:var(--text); margin:14px 0 4px}
+.report-modal-body code{font-family:var(--mono); font-size:12px; color:var(--amber); background:rgba(242,169,60,.08); padding:1px 4px; border-radius:4px}
+.report-copy-btn{margin-top:12px; width:100%}
+
+/* ---------------- boot sequence ---------------- */
+#boot{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:3px}
+#boot .line{font-family:var(--mono); font-size:12.5px; color:var(--text-mute); opacity:0; animation:bootline .35s ease forwards}
+#boot .line b{color:var(--cyan)}
+#boot .line.ok b{color:var(--good)}
+#boot .cursor{display:inline-block; width:7px; height:13px; background:var(--cyan); margin-left:2px; vertical-align:middle; animation:blink .8s steps(2) infinite}
+@keyframes bootline{to{opacity:1}}
+#boot.fadeout{animation:bootfade .5s ease forwards}
+@keyframes bootfade{to{opacity:0; visibility:hidden}}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="line" style="animation-delay:.05s">incident-lens --connect serenedb:7890</div>
+  <div class="line" style="animation-delay:.3s">loading evidence ledger&hellip; <b id="bootEntries">&mdash;</b> entries</div>
+  <div class="line" style="animation-delay:.55s">verifying hash chain&hellip;</div>
+  <div class="line ok" style="animation-delay:.9s">chain <b>verified</b>. corpus online.</div>
+  <div class="line" style="animation-delay:1.1s">&gt;<span class="cursor"></span></div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-text"><b>INCIDENT LENS</b><span>MCP Log Intelligence · SereneDB</span></div>
+  </div>
+  <div class="stat-strip" id="statStrip">
+    <div class="stat"><span class="n" id="statBgl">&mdash;</span><span class="l">BGL rows</span></div>
+    <div class="stat"><span class="n" id="statOs">&mdash;</span><span class="l">OpenStack rows</span></div>
+    <div class="stat"><span class="n" id="statNodes">&mdash;</span><span class="l">Nodes</span></div>
+    <div class="stat"><span class="n" id="statSpan">&mdash;</span><span class="l">Span (days)</span></div>
+  </div>
+  <div class="topbar-right">
+    <div class="chain-pill pending" id="chainPill"><span class="dot"></span><span id="chainLabel">CHECKING CHAIN&hellip;</span></div>
+    <button class="btn" id="tamperBtn">Simulate Tamper</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="chat-col">
+    <div class="panel-head">Ask Incident Lens<span class="line"></span></div>
+    <div class="roles">
+      <button class="role-btn active" data-role="engineer">ENGINEER<small>find it, trace it</small></button>
+      <button class="role-btn" data-role="lead">TEAM LEAD<small>recurrence &amp; ownership</small></button>
+      <button class="role-btn" data-role="manager">MANAGER<small>what matters first</small></button>
+    </div>
+    <div class="presets" id="presets"></div>
+    <div class="transcript" id="transcript"></div>
+    <div class="composer">
+      <input id="question" type="text" placeholder="Ask about BGL or OpenStack logs&hellip;" autocomplete="off">
+      <button id="sendBtn">Ask</button>
+    </div>
+  </div>
+  <div class="ledger-col">
+    <div class="panel-head">Evidence Ledger <span style="color:var(--text-mute); font-weight:400; font-size:11px; text-transform:none; letter-spacing:0">&nbsp;&middot; hash-chained, replayable</span><span class="line"></span></div>
+    <div class="ledger-feed" id="ledgerFeed">
+      <div class="ledger-empty" id="ledgerEmpty">Every tool call Claude makes lands here in real time &mdash; the exact SQL, the exact count, and a hash chained to the entry before it. Nothing is summarized or rounded before it's logged.</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="tamperModal">
+  <div class="modal">
+    <h3>Ledger tamper test</h3>
+    <p class="sub">This clones the ledger to a scratch copy, edits one stored number by hand (bypassing every tool), and re-verifies. The live ledger is never touched.</p>
+    <div id="tamperSteps"></div>
+    <div id="tamperResult"></div>
+    <button class="btn modal-close" id="tamperClose">Close</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="reportModal">
+  <div class="modal" style="width:min(680px,100%)">
+    <h3 id="reportTitle">Report</h3>
+    <p class="sub" id="reportSub"></p>
+    <div class="report-modal-body" id="reportBody"></div>
+    <button class="btn report-copy-btn" id="reportCopyBtn">Copy markdown</button>
+    <button class="btn modal-close" id="reportClose">Close</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="evModal">
+  <div class="modal ev-modal" style="width:min(640px,100%)">
+    <h3 id="evTitle">Evidence</h3>
+    <p class="sub" id="evSub"></p>
+    <pre id="evBody"></pre>
+    <button class="btn modal-close" id="evClose">Close</button>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+let role = "engineer";
+let lastHash = null;
+
+const PRESETS = {
+  engineer: ["Find 'parity error' in BGL and show what happened around the first hit.",
+             "Is the ciod job-launch failure always the same node?"],
+  lead:     ["Which problems recur most in BGL and which team owns them?",
+             "Is the ciod job-launch failure getting worse week over week?"],
+  manager:  ["Of the recurring problems in BGL, what deserves attention first right now?",
+             "Give me the whole-corpus picture across BGL and OpenStack."],
+};
+
+function renderPresets(){
+  $('#presets').innerHTML = PRESETS[role].map(p=>`<div class="preset" data-q="${p.replace(/"/g,'&quot;')}">${p}</div>`).join('');
+  $$('.preset').forEach(el=>el.onclick=()=>{ $('#question').value = el.dataset.q; $('#question').focus(); });
+}
+$$('.role-btn').forEach(btn=>btn.onclick=()=>{
+  $$('.role-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  role = btn.dataset.role; renderPresets();
+});
+renderPresets();
+
+// ---------------- boot sequence ----------------
+(async ()=>{
+  try{
+    const r = await fetch('/api/ledger/status'); const d = await r.json();
+    $('#bootEntries').textContent = d.total_entries ?? '0';
+  }catch(e){ $('#bootEntries').textContent = '0'; }
+  setTimeout(()=>{
+    const boot = $('#boot'); boot.classList.add('fadeout');
+    setTimeout(()=>boot.remove(), 550);
+  }, 1500);
+})();
+
+function fmt(n){ if(n==null) return '&mdash;'; return Number(n).toLocaleString(); }
+function countUp(el, target, suffix=''){
+  const dur=900, t0=performance.now();
+  function tick(t){
+    const p=Math.min(1,(t-t0)/dur), v=Math.floor(target*(1-Math.pow(1-p,3)));
+    el.textContent=v.toLocaleString()+suffix;
+    if(p<1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// SereneDB (a vendor binary we don't control) has been observed to crash and restart under load.
+// Our server self-heals its connection automatically on the next query (server/db.py), but this
+// UI needs to self-heal too: never destroy the elements a retry needs, and keep retrying with
+// backoff instead of freezing on the first failure until the user manually reloads the page.
+let overviewRetryMs = 4000;
+async function loadOverview(){
+  try{
+    const r = await fetch('/api/overview'); const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    const bgl=d.datasets.bgl, os=d.datasets.openstack;
+    $('#statStrip').classList.remove('unreachable');
+    countUp($('#statBgl'), bgl.rows);
+    countUp($('#statOs'), os.rows);
+    countUp($('#statNodes'), bgl.distinct_nodes);
+    const days = Math.round((new Date(bgl.last_ts.replace(' ','T')) - new Date(bgl.first_ts.replace(' ','T')))/86400000);
+    countUp($('#statSpan'), days);
+    overviewRetryMs = 4000; // reset backoff once healthy again
+  }catch(e){
+    $('#statStrip').classList.add('unreachable');
+    ['statBgl','statOs','statNodes','statSpan'].forEach(id=>{ $('#'+id).textContent = '···'; });
+    overviewRetryMs = Math.min(overviewRetryMs * 1.5, 20000);
+    setTimeout(loadOverview, overviewRetryMs);
+  }
+}
+let chainRetryMs = 4000;
+async function loadChainStatus(){
+  const pill=$('#chainPill'), label=$('#chainLabel');
+  try{
+    const r=await fetch('/api/ledger/status'); const d=await r.json();
+    pill.classList.remove('pending','bad'); pill.classList.add('ok');
+    if(d.ok){ label.textContent = `CHAIN VERIFIED · ${d.total_entries} ENTRIES`; }
+    else{ pill.classList.remove('ok'); pill.classList.add('bad'); label.textContent = `CHAIN BROKEN AT ${d.first_broken_entry}`; }
+    chainRetryMs = 4000;
+    setTimeout(loadChainStatus, 15000); // keep polling even when healthy - the chain can change
+  }catch(e){
+    pill.classList.remove('pending','ok'); pill.classList.add('bad');
+    label.textContent = 'LEDGER UNREACHABLE · RETRYING';
+    chainRetryMs = Math.min(chainRetryMs * 1.5, 20000);
+    setTimeout(loadChainStatus, chainRetryMs);
+  }
+}
+loadOverview(); loadChainStatus();
+
+// ---------------- tamper demo ----------------
+$('#tamperBtn').onclick = async ()=>{
+  const modal=$('#tamperModal'); modal.classList.add('show');
+  const steps=$('#tamperSteps'), result=$('#tamperResult');
+  result.innerHTML=''; result.className='tamper-result';
+  steps.innerHTML = [
+    "Cloning the live evidence ledger to a scratch file&hellip;",
+    "Hand-editing one stored row's total_matches with raw SQL (no tool involved)&hellip;",
+    "Recomputing every hash in the chain from scratch&hellip;",
+  ].map((t,i)=>`<div class="tamper-step" id="tstep${i}"><span class="ix">${i+1}</span><span class="body">${t}</span></div>`).join('');
+  for(let i=0;i<3;i++){ await new Promise(r=>setTimeout(r,420)); $(`#tstep${i}`).querySelector('.body').innerHTML += ' <b style="color:var(--text-mute)">done</b>'; }
+  try{
+    const r = await fetch('/api/ledger/tamper-demo', {method:'POST'}); const d = await r.json();
+    if(d.error){ result.classList.add('bad'); result.textContent = d.error; return; }
+    const a = d.after_tamper;
+    result.classList.add(a.ok ? 'good' : 'bad');
+    result.innerHTML = a.ok
+      ? `unexpected: chain still verified after tampering ${d.tampered_entry}`
+      : `&#10060; DETECTED &mdash; tampered entry: <b>${d.tampered_entry}</b><br>chain breaks at: <b>${a.first_broken_entry}</b> (entry ${a.entries_checked} of ${a.total_entries})<br><br>&#9989; live ledger untouched &mdash; verifies clean: <b>${d.real_ledger_unaffected.ok}</b>, ${d.real_ledger_unaffected.total_entries} entries`;
+  }catch(e){ result.classList.add('bad'); result.textContent = 'request failed: '+e.message; }
+};
+$('#tamperClose').onclick = ()=> $('#tamperModal').classList.remove('show');
+$('#evClose').onclick = ()=> $('#evModal').classList.remove('show');
+$('#reportClose').onclick = ()=> $('#reportModal').classList.remove('show');
+
+// ---------------- report viewer ----------------
+let currentReportMarkdown = '';
+function markdownToHtml(md){
+  // minimal, purpose-built renderer for generate_report's own output shape - not a general
+  // markdown parser, just enough for #/##/###, **bold**, `code`, ```sql fences and bullet lines
+  const lines = (md||'').split('\n'); let html = ''; let inCode = false, codeBuf = [];
+  for(const line of lines){
+    if(line.startsWith('```')){
+      if(inCode){ html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
+      else inCode = true;
+      continue;
+    }
+    if(inCode){ codeBuf.push(line); continue; }
+    let l = escapeHtml(line).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+    if(l.startsWith('### ')) html += `<h3>${l.slice(4)}</h3>`;
+    else if(l.startsWith('## ')) html += `<h2>${l.slice(3)}</h2>`;
+    else if(l.startsWith('# ')) html += `<h1>${l.slice(2)}</h1>`;
+    else if(l.startsWith('- ')) html += `<div style="margin:3px 0">&middot; ${l.slice(2)}</div>`;
+    else if(l.trim()==='') html += '<div style="height:6px"></div>';
+    else html += `<p style="margin:4px 0">${l}</p>`;
+  }
+  return html;
+}
+function openReport(title, markdown){
+  currentReportMarkdown = markdown || '';
+  $('#reportTitle').textContent = title || 'Report';
+  $('#reportSub').textContent = 'Generated from the evidence ledger — nothing here was computed fresh for this view.';
+  $('#reportBody').innerHTML = markdownToHtml(markdown);
+  $('#reportModal').classList.add('show');
+}
+$('#reportCopyBtn').onclick = async ()=>{
+  try{ await navigator.clipboard.writeText(currentReportMarkdown); const b=$('#reportCopyBtn'); const was=b.textContent; b.textContent='Copied'; setTimeout(()=>b.textContent=was, 1200); }
+  catch(e){ /* clipboard may be unavailable; the modal text is still selectable */ }
+};
+
+// ---------------- evidence detail ----------------
+async function openEvidence(eid){
+  const modal=$('#evModal');
+  $('#evTitle').textContent = eid; $('#evSub').textContent='Loading replay…'; $('#evBody').textContent=''; modal.classList.add('show');
+  try{
+    const r = await fetch('/api/evidence/'+eid); const d = await r.json();
+    if(d.error){ $('#evSub').textContent = d.error; return; }
+    $('#evSub').textContent = `${d.tool} · ${d.created_at} · hash ${d.ledger_hash?.slice(0,16)}…`;
+    $('#evBody').textContent = JSON.stringify(d.entry, null, 2);
+  }catch(e){ $('#evSub').textContent = 'failed: '+e.message; }
+}
+
+// ---------------- ledger feed ----------------
+function pushEvidenceCard({tool, evidence_id, total_matches, returned, truncated, sql, ledger_hash, ms, scope, markdown, title}){
+  $('#ledgerEmpty')?.remove();
+  const feed = $('#ledgerFeed');
+  const card = document.createElement('div');
+  const prevShort = lastHash ? lastHash.slice(0,10) : 'GENESIS';
+  const hashShort = (ledger_hash||'').slice(0,10) || '…';
+  lastHash = ledger_hash || lastHash;
+
+  if(tool === 'generate_report'){
+    card.className = 'ecard report';
+    card.innerHTML = `
+      <div class="chain-rail"><div class="chain-node"></div></div>
+      <div class="ecard-head">
+        <span class="ecard-tool">REPORT</span>
+        <span class="ecard-ms">${ms}ms</span>
+        <span class="ecard-eid">${evidence_id||'…'}</span>
+      </div>
+      <div class="report-title">${escapeHtml(title || 'Shareable report')}</div>
+      <div class="ecard-scope">${fmt(returned)} evidence citation${returned===1?'':'s'} packaged — no new numbers computed</div>
+      <div class="ecard-hash"><span class="h">${prevShort}</span>&nbsp;&#8594;&nbsp;<span class="h">${hashShort}</span></div>
+      <button class="report-view-btn">View report →</button>
+    `;
+    card.querySelector('.report-view-btn').onclick = (e)=>{ e.stopPropagation(); openReport(title, markdown); };
+  } else {
+    card.className = 'ecard';
+    const scopeLine = scope ? `${scope.dataset}${scope.from ? ' · '+scope.from.slice(0,10)+' → '+(scope.to_exclusive||'').slice(0,10) : ' · whole corpus'}` : '';
+    card.innerHTML = `
+      <div class="chain-rail"><div class="chain-node"></div></div>
+      <div class="ecard-head">
+        <span class="ecard-tool">${tool}</span>
+        <span class="ecard-ms">${ms}ms</span>
+        <span class="ecard-eid">${evidence_id||'…'}</span>
+      </div>
+      <div class="ecard-row">
+        <span class="ecard-metric">${fmt(total_matches)}<small>matches</small></span>
+        <span class="ecard-flags">${truncated ? '<span class="flag trunc">sample</span>' : '<span class="flag full">exact</span>'}</span>
+      </div>
+      <div class="ecard-scope">${scopeLine}</div>
+      <div class="ecard-hash"><span class="h">${prevShort}</span>&nbsp;&#8594;&nbsp;<span class="h">${hashShort}</span></div>
+      <div class="ecard-sql">${(sql||[]).join('\n\n').replace(/</g,'&lt;')}</div>
+    `;
+    card.onclick = (e)=>{ card.classList.toggle('open'); };
+  }
+  const eidEl = card.querySelector('.ecard-eid');
+  eidEl.onclick = (e)=>{ e.stopPropagation(); if(evidence_id) openEvidence(evidence_id); };
+  feed.appendChild(card);
+  feed.scrollTop = feed.scrollHeight;
+  loadChainStatus();
+}
+
+// ---------------- chat ----------------
+function addMsg(role, html){
+  const t=$('#transcript'); const div=document.createElement('div');
+  div.className = 'msg '+role; div.innerHTML = `<div class="bubble">${html}</div>`;
+  t.appendChild(div); t.scrollTop = t.scrollHeight; return div;
+}
+function renderAnswer(text){
+  // style the four-block contract if present, and turn [E-0007] into clickable chips
+  let html = text
+    .replace(/\n{2,}/g, '\n\n')
+    .split(/\n\n+/).map(block=>{
+      const m = block.match(/^(OBSERVED|HYPOTHESES|RECOMMENDED CHECKS\/ACTIONS|RECOMMENDED CHECKS|RECOMMENDED ACTIONS|UNKNOWN)[:\-]?\s*/i);
+      if(m){
+        const label = m[1].toUpperCase();
+        const cls = label.startsWith('OBSERVED') ? 'observed' : label.startsWith('HYPOTHESES') ? 'hypotheses' : label.startsWith('UNKNOWN') ? 'unknown' : 'checks';
+        const rest = block.slice(m[0].length);
+        return `<div class="contract-block ${cls}"><span class="tag">${label}</span>${escapeHtml(rest)}</div>`;
+      }
+      return `<p>${escapeHtml(block)}</p>`;
+    }).join('');
+  html = html.replace(/\[(E-\d{4}(?:\s*,\s*E-\d{4})*)\]/g, (m,ids)=>{
+    return ids.split(',').map(id=>id.trim()).map(id=>`<span class="cite" data-eid="${id}">[${id}]</span>`).join(' ');
+  });
+  return html;
+}
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+$('#transcript').addEventListener('click', (e)=>{
+  const c = e.target.closest('.cite'); if(c) openEvidence(c.dataset.eid);
+});
+
+let busy = false;
+async function ask(){
+  const input = $('#question'); const q = input.value.trim();
+  if(!q || busy) return;
+  busy = true; $('#sendBtn').disabled = true;
+  addMsg('user', escapeHtml(q));
+  input.value = '';
+  const thinkEl = addMsg('assistant', '<div class="typing-dots"><span></span><span></span><span></span></div>');
+
+  try{
+    const resp = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({role, dataset:'bgl', question:q})});
+    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf='';
+    let answered = false;
+    while(true){
+      const {done, value} = await reader.read(); if(done) break;
+      buf += decoder.decode(value, {stream:true});
+      let idx;
+      while((idx = buf.indexOf('\n\n')) >= 0){
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
+        const evM = chunk.match(/^event:\s*(.*)$/m), dataM = chunk.match(/^data:\s*(.*)$/m);
+        if(!evM || !dataM) continue;
+        const ev = evM[1].trim(); let data={};
+        try{ data = JSON.parse(dataM[1]); }catch(e){}
+        if(ev === 'tool_call'){
+          thinkEl.querySelector('.bubble').innerHTML = `<div class="running-tool"><span class="spinner"></span>running <b>${escapeHtml(data.tool)}</b>&hellip;</div>`;
+        } else if(ev === 'tool_result'){
+          pushEvidenceCard(data);
+        } else if(ev === 'thinking'){
+          thinkEl.querySelector('.bubble').innerHTML = `<div class="thinking">${escapeHtml(data.text)}</div>`;
+        } else if(ev === 'answer'){
+          thinkEl.querySelector('.bubble').innerHTML = renderAnswer(data.text);
+          answered = true;
+        } else if(ev === 'error'){
+          thinkEl.querySelector('.bubble').innerHTML = `<div class="thinking" style="color:var(--critical)">${escapeHtml(data.message)}</div>`;
+          answered = true;
+        }
+      }
+    }
+    if(!answered) thinkEl.querySelector('.bubble').innerHTML = '<div class="thinking">(no answer text returned)</div>';
+  }catch(e){
+    thinkEl.querySelector('.bubble').innerHTML = `<div class="thinking" style="color:var(--critical)">request failed: ${escapeHtml(e.message)}</div>`;
+  }
+  busy = false; $('#sendBtn').disabled = false;
+}
+$('#sendBtn').onclick = ask;
+$('#question').addEventListener('keydown', e=>{ if(e.key==='Enter') ask(); });
+</script>
+</body>
+</html>
