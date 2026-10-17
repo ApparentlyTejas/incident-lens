@@ -27,7 +27,7 @@ DO NOT use for grouped counts or trends over many entries (count_by, trend), and
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL, TRACE). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
 - `component`: any. Exact component, e.g. KERNEL.
 - `node`: any. bgl only: exact node id.
 - `service`: any. openstack only: nova-api | nova-compute | nova-scheduler.
@@ -39,7 +39,7 @@ DO NOT use for grouped counts or trends over many entries (count_by, trend), and
 
 Events around one log entry: what happened just before and after. ENGINEER, after search_logs.
 Inputs: dataset, log_id (the `id` from a search hit), before_seconds / after_seconds (default 60/60, max 86400), scope, limit (default 40, max 100).
-Scope: bgl auto/same_node = same node only; any_node = every node in the window. openstack auto = same request_id if the entry has one, else same service; also same_service | any.
+Scope: bgl auto/same_node = same node only; any_node = every node in the window - same_request/same_service/any are OpenStack-only and error on bgl. openstack auto = same request_id if the entry has one, else same service; also same_service | any - same_request errors if the anchor entry has no request_id.
 Returns: the anchor entry, events ordered by time (anchor flagged), total events in the window and truncated flag (if truncated the events closest in time are kept).
 Events are context, not proof of causation. DO NOT use to count occurrences.
 
@@ -58,7 +58,7 @@ Exact counts grouped by component, team, level, node/service, alert, template et
 Inputs: dataset, group_by, optional from_ts/to_ts, optional text query (+mode), levels or severity, component, node, service, alert, limit (default 25).
 group_by: team (via the FICTIONAL ownership table), component, level, node, alert, template, type (bgl); service, component, level, http_status, http_method, template, team (openstack).
 Returns: rows of name/entries/share_pct, total_matches, groups_total, truncated. Counts are log ENTRIES, not incidents - pair with `episodes` for occurrence claims.
-DO NOT use to read message text (search_logs) or to see change over time (trend).
+DO NOT use to read message text (search_logs) or to see change over time (trend). For group_by=template specifically, prefer `recurring_patterns` instead - it adds spread, first/last seen, and new-vs-recurring on top of the same counts.
 
 **Inputs**
 
@@ -69,7 +69,7 @@ DO NOT use to read message text (search_logs) or to see change over time (trend)
 - `query`: any. Optional text filter on the message.
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL, TRACE). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -92,7 +92,7 @@ DO NOT use for message text or for one-off totals (count_by).
 - `query`: any. 
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL, TRACE). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -115,7 +115,7 @@ Always report BOTH numbers and the gap rule. DO NOT use for message text or grou
 - `query`: any. 
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL, TRACE). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -127,8 +127,8 @@ Always report BOTH numbers and the gap rule. DO NOT use for message text or grou
 
 Most frequent message templates (message types with numbers/ids/hosts normalised to <*>) in a period, with counts, spread across nodes/components, first/last seen, active days, and whether the template first appeared inside the period. TEAM LEAD and MANAGER: 'which problems recur'.
 Inputs: dataset, optional from_ts/to_ts, levels/severity, component, node, service, alert, limit (default 15).
-Returns: ranked templates with entries/share_pct, templates_total, returned_templates_cover_pct, truncated. Templates come from a simple normaliser, not Loghub's labelled templates.
-DO NOT use to read individual events (search_logs).
+Returns: ranked templates with entries/share_pct, templates_total, returned_templates_cover_pct, truncated, new_in_period (null unless from_ts/to_ts is given explicitly - pass a bounded recent window, e.g. the last 4 weeks, to tell a genuinely new template apart from the corpus's oldest ones). Templates come from a simple normaliser, not Loghub's labelled templates.
+DO NOT use to read individual events (search_logs). Ranks by raw frequency only - for a pattern that's quietly concentrated on one node/service rather than loud and widespread, use `concentration_anomalies` instead; the two rank the same data differently on purpose.
 
 **Inputs**
 
@@ -136,11 +136,32 @@ DO NOT use to read individual events (search_logs).
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL, TRACE). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
 - `alert`: any. 
+- `limit`: integer. 
+
+## `concentration_anomalies`
+
+Finds patterns a frequency ranking buries: templates ranked by CONCENTRATION (entries / distinct nodes-or-services affected), not raw count. A pattern with thousands of entries confined to one single node is a different, more actionable finding (go check that node's hardware/config) than the same count spread across the whole system (more likely systemic) - recurring_patterns' frequency-only ranking can put the first one dozens of rows down, this puts it first. TEAM LEAD and MANAGER: 'what's quietly wrong with one specific part of the system that raw frequency hides'.
+Inputs: dataset, optional from_ts/to_ts, levels/severity, component, node, service, alert, min_entries (default 50, excludes one-off rarities - those aren't 'concentrated', just rare), limit (default 10).
+Returns: ranked templates with entries, distinct_partitions, concentration_ratio (entries / distinct_partitions), templates_total, truncated. Templates come from a simple normaliser, not Loghub's labelled templates.
+DO NOT use for a plain most-frequent ranking (recurring_patterns) or to read individual events (search_logs).
+
+**Inputs**
+
+- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
+- `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
+- `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `component`: any. 
+- `node`: any. 
+- `service`: any. 
+- `alert`: any. 
+- `min_entries`: integer. Exclude templates with fewer entries than this - a one-off rare event isn't 'concentrated', it's just rare.
 - `limit`: integer. 
 
 ## `latency_summary`
@@ -171,8 +192,27 @@ Inputs: dataset (optional), component (optional; for openstack the key is the se
 
 ## `get_evidence`
 
-Replay any earlier tool result from the evidence ledger by its evidence_id (e.g. 'E-0007'): the tool, arguments, the exact SQL that ran, counts, truncation flag and result. ALL ROLES, to verify or re-quote a number. Does not run new queries.
+Replay any earlier tool result from the evidence ledger by its evidence_id (e.g. 'E-0007'): the tool, arguments, the exact SQL that ran, counts, truncation flag, result, and the entry's tamper-evident hash. ALL ROLES, to verify or re-quote a number. Does not run new queries.
 
 **Inputs**
 
 - `evidence_id` (required): string. Id like 'E-0007' returned by any tool.
+
+## `verify_ledger_integrity`
+
+Checks whether the evidence ledger has been tampered with: every entry is hash-chained to the one before it (sha256 of the previous entry's hash + this entry's own content), independently recomputed from the raw stored rows here, not trusted from storage. ALL ROLES, to back up a claim that 'every number traces to a query that actually ran' with something checkable rather than just asserted. Takes no inputs; runs no SereneDB queries (SQLite ledger only).
+
+**Inputs**
+
+
+## `generate_report`
+
+Packages a finished answer into one shareable markdown report: the answer text plus, for every cited evidence_id, its tool, scope, total_matches, exact SQL and ledger hash. ALL ROLES, but OPT-IN ONLY - call it when the user asks for a written report, a summary to share/hand off, or similar, not automatically after every ordinary answer. Runs no new queries and computes no new numbers - it only replays what the cited evidence_ids already say, so the report can never show a figure the ledger doesn't back. Also flags (does not block on) any [E-xxxx] mentioned in the answer text that wasn't included in evidence_ids.
+Inputs: title, body (the answer text, four-block contract included, with [E-xxxx] citations inline), evidence_ids (every id cited in body - use ALL of them, not a subset).
+DO NOT call this after a normal question-and-answer where nothing was asked to be shared; DO NOT use it to compute anything new - call the other tools first and only report on evidence_ids they actually returned.
+
+**Inputs**
+
+- `title` (required): string. Short report title, e.g. 'ciod job-launch failures - team lead review'.
+- `body` (required): string. The full answer text, four-block contract included, with [E-xxxx] citations inline.
+- `evidence_ids` (required): array. Every evidence_id cited in body, e.g. ['E-0097','E-0101'].

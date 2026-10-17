@@ -4,8 +4,12 @@ from . import config
 
 _conn = None
 
-def conn():
+def conn(force_new=False):
     global _conn
+    if force_new and _conn is not None:
+        try: _conn.close()
+        except Exception: pass
+        _conn = None
     if _conn is None or _conn.closed:
         _conn = psycopg.connect(config.DSN, autocommit=True)
         try:
@@ -26,8 +30,14 @@ COUNT_COLS = {"n", "entries", "episodes", "total", "matches", "requests", "rows"
 
 def run(sql, params=None):
     """Execute one parameterised statement -> (columns, rows[list of dict]).
-    Count-like columns are coerced to int (index scans can return counts as text)."""
-    cur = conn().execute(sql, list(params) if params else None)
+    Count-like columns are coerced to int (index scans can return counts as text).
+    A cached connection's .closed flag only reflects a local close() call, not a server that died
+    and restarted underneath it (e.g. a SereneDB crash) - that surfaces as OperationalError on first
+    use after the fact, so retry exactly once with a fresh connection before giving up."""
+    try:
+        cur = conn().execute(sql, list(params) if params else None)
+    except psycopg.OperationalError:
+        cur = conn(force_new=True).execute(sql, list(params) if params else None)
     if not cur.description: return [], []
     cols = [d.name for d in cur.description]
     def fix(c, v):

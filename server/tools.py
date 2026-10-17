@@ -1,8 +1,8 @@
-"""The ten Incident Lens tools. Plain functions (testable without MCP); server/app.py registers them.
+"""The Incident Lens tools. Plain functions (testable without MCP); server/app.py registers them.
 Every tool: parameterised SQL only, row caps, scope + truncation reported, evidence-ledger entry."""
-import datetime as dt
+import datetime as dt, re
 from . import config, db, ledger
-from .common import (dataset_cfg, resolve_period, where, column_filters, clamp_limit, Tracer, finish, text_predicate)
+from .common import (dataset_cfg, resolve_period, where, column_filters, clamp_limit, Tracer, finish, text_predicate, dataset_span)
 
 BUCKETS = {"hour", "day", "week"}
 
@@ -44,8 +44,16 @@ def search_logs(dataset, query, mode="terms", from_ts=None, to_ts=None, levels=N
     args = dict(locals())
     ds, cfg = dataset_cfg(dataset); f, t = resolve_period(ds, from_ts, to_ts); limit = clamp_limit(limit)
     tr = Tracer()
-    idx = cfg["index"]; w, p = where(ds, f, t, cfg, query=query, mode=mode, distance=fuzzy_distance, via_index=True,
-                                     levels=levels, severity=severity, component=component, node=node, service=service)
+    idx = cfg["index"]
+    lo, hi = dataset_span(ds)
+    # ts bounds covering the whole corpus are a no-op filter, but SereneDB's inverted-index scan loses its
+    # fast top-k scoring path (block-max pruning) whenever ANY range filter is ANDed with the BM25 ORDER BY,
+    # even one that excludes nothing - so dropping a provably-redundant bound here is a real ~9x speedup,
+    # not just a tidier query (see eval/benchmark_results.md for the measurements behind this).
+    ts_redundant = f <= lo and t >= hi + dt.timedelta(seconds=1)
+    w, p = where(ds, f, t, cfg, query=query, mode=mode, distance=fuzzy_distance, via_index=True,
+                 levels=levels, severity=severity, component=component, node=node, service=service,
+                 include_ts=not ts_redundant)
     total = tr.scalar(f"SELECT count(*) FROM {idx} WHERE {w}", p)
     cols = "id, ts, node, component, level, alert" if ds == "bgl" else "id, ts, service, component, level, request_id, http_status"
     use_rank = order == "relevance" and mode != "fuzzy"
@@ -72,9 +80,16 @@ def search_logs(dataset, query, mode="terms", from_ts=None, to_ts=None, levels=N
                   guidance="`rows` is a limited sample. Quote frequency only from total_matches / summary_over_all_matches, never from len(rows).")
 
 # ---------------------------------------------------------------- nearby_events
+_BGL_SCOPES = {"auto", "same_node", "any_node"}
+_OS_SCOPES = {"auto", "same_request", "same_service", "any"}
+
 def nearby_events(dataset, log_id, before_seconds=60, after_seconds=60, scope="auto", limit=40):
     args = dict(locals())
     ds, cfg = dataset_cfg(dataset); limit = clamp_limit(limit); tr = Tracer(); tbl = cfg["table"]
+    # a scope that doesn't apply to this dataset is a real mistake (e.g. 'same_request' on bgl) -
+    # silently substituting a different scope would hide that mistake instead of surfacing it
+    valid = _BGL_SCOPES if ds == "bgl" else _OS_SCOPES
+    if scope not in valid: raise ValueError(f"scope {scope!r} is not valid for dataset {ds!r}; use one of {sorted(valid)}")
     before_seconds, after_seconds = max(0, min(int(before_seconds), 86400)), max(0, min(int(after_seconds), 86400))
     _, a = tr.run(f"SELECT * FROM {tbl} WHERE id = %s", [int(log_id)])
     if not a: raise ValueError(f"no log entry with id {log_id} in dataset {ds}")
@@ -82,10 +97,12 @@ def nearby_events(dataset, log_id, before_seconds=60, after_seconds=60, scope="a
     lo, hi = t0 - dt.timedelta(seconds=before_seconds), t0 + dt.timedelta(seconds=after_seconds)
     conds, params = ["ts >= %s", "ts <= %s"], [lo, hi]
     if ds == "bgl":
-        used = "any_node" if scope == "any_node" else "same_node"
+        used = "same_node" if scope == "auto" else scope
         if used == "same_node": conds.append("node = %s"); params.append(a["node"])
     else:
-        used = scope if scope in ("same_service", "any") else ("same_request" if a.get("request_id") else "same_service")
+        if scope == "same_request" and not a.get("request_id"):
+            raise ValueError(f"log entry {log_id} has no request_id; scope='same_request' doesn't apply - try 'same_service' or 'auto'")
+        used = scope if scope != "auto" else ("same_request" if a.get("request_id") else "same_service")
         if used == "same_request": conds.append("request_id = %s"); params.append(a["request_id"])
         elif used == "same_service": conds.append("service = %s"); params.append(a["service"])
     w = " AND ".join(conds)
@@ -201,15 +218,54 @@ def recurring_patterns(dataset, from_ts=None, to_ts=None, levels=None, severity=
           FROM {tbl} t JOIN (SELECT template, min(ts) AS first_ever FROM {tbl} GROUP BY 1) g ON g.template = t.template
           WHERE {w} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT {limit}""", p)
     covered = sum(r["entries"] for r in rows)
+    # 'new' only means something relative to a bounded recent window - with no explicit from_ts,
+    # f is the dataset's own earliest timestamp, so "first_ever >= f" would be true for every
+    # template that has ever existed (nothing can occur before the corpus starts). Report None
+    # rather than a flag that's vacuously True for the oldest, most persistent patterns too.
+    explicit_period = from_ts is not None or to_ts is not None
     for r in rows:
-        r["new_in_period"] = dt.datetime.fromisoformat(r["first_ever_in_corpus"]) >= f
+        r["new_in_period"] = (dt.datetime.fromisoformat(r["first_ever_in_corpus"]) >= f) if explicit_period else None
         r["share_pct"] = round(100.0 * r["entries"] / total, 2) if total else None
     return finish("recurring_patterns", args, tr, ds, f, t,
                   {"levels": levels, "severity": severity if severity != "all" else None, "component": component, "node": node, "service": service, "alert": alert},
                   total_matches=total, templates_total=n_t, returned=len(rows), truncated=n_t > len(rows), rows=rows,
                   returned_templates_cover_pct=round(100.0 * covered / total, 2) if total else None,
                   template_note="Templates are derived by a simple normaliser (numbers, ids, hosts -> <*>); they approximate message types and are not Loghub's labelled templates.",
+                  new_in_period_note="new_in_period is null unless from_ts/to_ts is given explicitly - pass a bounded recent window (e.g. the last 4 weeks) to distinguish genuinely new templates from the corpus's oldest, most persistent ones.",
                   scope_statement="Exact counts over all log entries in scope; ranked by entries.")
+
+# ---------------------------------------------------------------- concentration_anomalies
+def concentration_anomalies(dataset, from_ts=None, to_ts=None, levels=None, severity="all", component=None, node=None,
+                            service=None, alert=None, min_entries=50, limit=10):
+    """Rank templates by concentration (entries per affected node/service), not raw frequency.
+    A pattern with thousands of entries confined to a single node is a different, more actionable
+    finding than the same count spread over a thousand nodes - recurring_patterns' frequency
+    ranking can bury it dozens of rows down; this surfaces it directly."""
+    args = dict(locals())
+    ds, cfg = dataset_cfg(dataset); f, t = resolve_period(ds, from_ts, to_ts); tr = Tracer(); tbl = cfg["table"]
+    min_entries = max(1, int(min_entries)); limit = clamp_limit(limit)
+    w, p = where(ds, f, t, cfg, alias="t", levels=levels, severity=severity, component=component, node=node, service=service, alert=alert)
+    part = cfg["partition_col"]
+    total = tr.scalar(f"SELECT count(*) FROM {tbl} t WHERE {w}", p)
+    n_t = tr.scalar(f"SELECT count(*) FROM (SELECT template FROM {tbl} t WHERE {w} GROUP BY 1 HAVING count(*) >= {min_entries}) x", p)
+    _, rows = tr.run(f"""SELECT t.template AS template, count(*) AS entries, count(DISTINCT t.{part}) AS distinct_partitions,
+                 min(t.ts) AS first_seen, max(t.ts) AS last_seen
+          FROM {tbl} t WHERE {w} GROUP BY 1 HAVING count(*) >= {min_entries}
+          ORDER BY count(*) * 1.0 / count(DISTINCT t.{part}) DESC, count(*) DESC LIMIT {limit}""", p)
+    for r in rows:
+        r["concentration_ratio"] = round(r["entries"] / r["distinct_partitions"], 1)
+    return finish("concentration_anomalies", args, tr, ds, f, t,
+                  {"levels": levels, "severity": severity if severity != "all" else None, "component": component,
+                   "node": node, "service": service, "alert": alert, "min_entries": min_entries},
+                  total_matches=total, templates_total=n_t, returned=len(rows), truncated=n_t > len(rows), rows=rows,
+                  partition_by=part,
+                  metric_definition=f"concentration_ratio = entries / distinct_{part}s. High means this pattern recurs heavily but is "
+                                     f"confined to very few {part}s (check that specific hardware/config first); low means it's spread "
+                                     f"across many (more likely systemic). Ranked by this ratio, not raw frequency - use recurring_patterns for that.",
+                  min_entries_note=f"templates with fewer than {min_entries} entries are excluded (min_entries) - a one-off rare event "
+                                    "isn't 'concentrated', it's just rare. Lower min_entries to catch smaller but still-concentrated patterns.",
+                  template_note="Templates are derived by a simple normaliser (numbers, ids, hosts -> <*>); they approximate message types and are not Loghub's labelled templates.",
+                  scope_statement="Exact counts and exact distinct-partition counts over all log entries in scope.")
 
 # ---------------------------------------------------------------- latency_summary
 def latency_summary(from_ts=None, to_ts=None, service=None, group_by="service", levels=None, limit=25):
@@ -252,3 +308,65 @@ def get_evidence(evidence_id):
     e = ledger.get(evidence_id)
     if not e: raise ValueError(f"unknown evidence_id {evidence_id!r}; known ids: {ledger.all_ids()[-10:]}")
     return e
+
+# ---------------------------------------------------------------- verify_ledger_integrity
+def verify_ledger_integrity():
+    return ledger.verify_chain()
+
+# ---------------------------------------------------------------- generate_report
+_CITE_RE = re.compile(r"\bE-\d{4}\b")
+
+def generate_report(title, body, evidence_ids):
+    """Package an already-written answer plus its cited evidence into one shareable markdown
+    report. Does not run new queries or re-derive any number - it replays what's already in the
+    ledger, so a report can never show a number the ledger doesn't back."""
+    if not isinstance(title, str) or not title.strip(): raise ValueError("title must be a non-empty string")
+    if not isinstance(body, str) or not body.strip(): raise ValueError("body must be a non-empty string")
+    if isinstance(evidence_ids, str) or not isinstance(evidence_ids, (list, tuple)):
+        raise ValueError(f"evidence_ids must be a list of evidence_id strings, got {type(evidence_ids).__name__}")
+    if not evidence_ids: raise ValueError("evidence_ids must not be empty - cite at least one evidence id from the answer")
+    bad_type = [eid for eid in evidence_ids if not isinstance(eid, str)]
+    if bad_type: raise ValueError(f"evidence_ids must all be strings, got non-string value(s): {bad_type}")
+    seen, deduped = set(), []   # preserve order, drop exact duplicates so the report doesn't repeat a citation
+    for eid in evidence_ids:
+        if eid.upper() not in seen: seen.add(eid.upper()); deduped.append(eid)
+    evidence_ids = deduped
+    entries, missing = [], []
+    for eid in evidence_ids:
+        e = ledger.get(eid)
+        if e is None: missing.append(eid)
+        else: entries.append((eid, e))
+    if missing: raise ValueError(f"unknown evidence_id(s): {missing}; known ids: {ledger.all_ids()[-10:]}")
+    # the answer text may cite ids in prose that were never actually attached to the report -
+    # that's exactly the kind of silent gap eval/verify_answer.py checks for offline; flag it here too
+    cited_in_body = {m for m in _CITE_RE.findall(body)}
+    attached = {eid.upper() for eid in evidence_ids}
+    uncited_extra = sorted(cited_in_body - attached)
+    chain = ledger.verify_chain()
+
+    lines = [f"# {title.strip()}", "",
+             f"_Generated {dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds')} by Incident Lens. "
+             "Every number below traces to a replayable evidence id; the ledger's hash chain was independently "
+             "re-verified at generation time, not assumed._", "", "## Answer", "", body.strip(), "",
+             "## Cited evidence", ""]
+    for eid, e in entries:
+        entry = e["entry"]
+        sql_block = "\n\n".join(entry.get("sql") or []) or "(no SQL on this entry)"
+        lines += [f"### {eid} — `{entry.get('tool')}`",
+                   f"- scope: `{entry.get('scope')}`",
+                   f"- total_matches: **{entry.get('total_matches')}**, returned: {entry.get('returned')}, truncated: {entry.get('truncated')}",
+                   f"- ledger hash: `{e.get('ledger_hash')}` (chained from `{e.get('ledger_prev_hash')}`)",
+                   "- SQL:", "```sql", sql_block, "```", ""]
+    lines += ["## Ledger integrity", "",
+              f"Full evidence ledger verified **{'clean' if chain['ok'] else 'BROKEN at ' + str(chain['first_broken_entry'])}** "
+              f"across {chain['total_entries']} entries at report generation time.", ""]
+    if uncited_extra:
+        lines += [f"**Warning:** the answer text cites {uncited_extra} in prose but they were not attached as "
+                  "evidence_ids to this report - replay them with `get_evidence` before trusting those numbers.", ""]
+    markdown = "\n".join(lines)
+
+    return finish("generate_report", {"title": title, "evidence_ids": evidence_ids}, Tracer(), "report", None, None, {},
+                  total_matches=len(entries), returned=len(entries), truncated=False,
+                  markdown=markdown, chain_ok=chain["ok"], uncited_in_body=uncited_extra,
+                  guidance="`markdown` is the full shareable report - display it verbatim or save it to a file; "
+                           "this tool only replays existing ledger entries, it never computes a new number.")

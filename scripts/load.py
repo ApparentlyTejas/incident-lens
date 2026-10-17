@@ -40,9 +40,14 @@ def main():
     run_file(conn, "ownership.sql", subs)
     t = time.time(); run_file(conn, "indexes.sql", subs); print(f"inverted indexes built + refreshed in {time.time()-t:.1f}s")
     if a.sample:
-        sql = (ROOT / "data/sample/fixtures.sql").read_text()
-        for stmt in [x.strip() for x in sql.split(";") if x.strip() and not x.strip().startswith("--") or "INSERT" in x or "VACUUM" in x]:
-            conn.execute("\n".join(l for l in stmt.splitlines() if not l.strip().startswith("--")))
+        # same "is this chunk pure comments/blank lines" check as run_file() above - the previous
+        # version's `... or "INSERT" in x or "VACUUM" in x` was meant to rescue a statement with a
+        # leading comment line, but by operator precedence it also force-included (and then tried
+        # to execute as an EMPTY statement) any pure-comment chunk that merely mentioned those words
+        for s in (ROOT / "data/sample/fixtures.sql").read_text().split(";"):
+            s = s.strip()
+            if not s or all(l.strip().startswith("--") or not l.strip() for l in s.splitlines()): continue
+            conn.execute("\n".join(l for l in s.splitlines() if not l.strip().startswith("--")))
     run_file(conn, "readonly_role.sql", subs)
     for t_ in ("bgl_logs", "openstack_logs", "ownership"):
         print(f"{t_}: {int(conn.execute(f'select count(*) from {t_}').fetchone()[0])} rows")

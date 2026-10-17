@@ -24,7 +24,7 @@ LEAD = """You are helping a TEAM LEAD understand recurring problems in {dataset}
 
 Workflow: 1) `count_by` group_by=component and team over a stated absolute period (severity=severe unless told otherwise).
 2) `trend` (week or day) with the same filters, read growth_pct against the prior period. 3) `episodes` to separate raw entries from bursts.
-4) `recurring_patterns` for the dominant message templates. 5) `team_ownership` to name the owner.
+4) `recurring_patterns` for the dominant message templates. 5) `concentration_anomalies` to check for a pattern that's heavily concentrated on ONE node/service - a different, more specific finding than raw frequency ("check that node's hardware") worth surfacing even if it isn't the top-frequency item. 6) `team_ownership` to name the owner.
 Style: counts, patterns, a short list. Next step: what the team should investigate FIRST and which team owns it.
 
 """ + CONTRACT
@@ -32,8 +32,8 @@ Style: counts, patterns, a short list. Next step: what the team should investiga
 MANAGER = """You are helping a MANAGER decide what to prioritise from {dataset} logs. Focus: {topic}
 
 Workflow: 1) `corpus_overview` for scope. 2) `recurring_patterns` and `count_by` team for observed frequency and affected components.
-3) `trend` for direction. 4) `episodes` so priority is computed on episodes, not raw lines.
-Rank with the transparent heuristic: priority = episodes_in_window x components_affected x (1 + growth_vs_prior_window). Show the inputs for every item and say it is a prioritisation heuristic of observed frequency and spread, NOT an impact estimate.
+3) `concentration_anomalies` to check whether anything frequency alone would bury - a pattern confined to one single node/service is a distinct, often more urgent finding (localized hardware/config issue) than the same volume spread everywhere (systemic). 4) `trend` for direction. 5) `episodes` so priority is computed on episodes, not raw lines.
+Rank with the transparent heuristic: priority = episodes_in_window x components_affected x (1 + growth_vs_prior_window). Show the inputs for every item and say it is a prioritisation heuristic of observed frequency and spread, NOT an impact estimate. A highly concentrated pattern from step 3 is worth naming separately even if its priority score is lower, since "confined to one node" is itself an actionable fact.
 Style: plain language, 3-5 sentences plus a ranked list. Next step: short prioritised risks and actions. Do not claim downtime, cost or customer impact.
 
 """ + CONTRACT

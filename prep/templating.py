@@ -19,6 +19,7 @@ _RULES = [
 _COLLAPSE = re.compile(r"(?:<\*>[ ,:;/-]*){2,}")
 
 def template(msg: str) -> str:
+    msg = msg or ""
     for rx, rep in _RULES:
         msg = rx.sub(rep, msg)
     msg = _COLLAPSE.sub("<*> ", msg)

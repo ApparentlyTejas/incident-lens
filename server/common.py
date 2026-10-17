@@ -64,18 +64,20 @@ def column_filters(cfg, levels=None, severity="all", component=None, node=None, 
         clauses.append(f"{prefix}http_status = %s"); params.append(int(http_status))
     return clauses, params
 
-def where(dataset, f, t, cfg, query=None, mode="terms", distance=1, via_index=False, alias="", **filters):
+def where(dataset, f, t, cfg, query=None, mode="terms", distance=1, via_index=False, alias="", include_ts=True, **filters):
     """Full WHERE clause. via_index=True queries the inverted index directly (needed for @@);
-       otherwise a text query becomes `id IN (SELECT id FROM <index> WHERE ...)` on the base table."""
+       otherwise a text query becomes `id IN (SELECT id FROM <index> WHERE ...)` on the base table.
+       include_ts=False drops the (then-redundant) ts bounds - see search_logs's use of this for why."""
     p = f"{alias}." if alias else ""
-    clauses = [f"{p}ts >= %s", f"{p}ts < %s"]; params = [f, t]
+    clauses = [f"{p}ts >= %s", f"{p}ts < %s"] if include_ts else []
+    params = [f, t] if include_ts else []
     c, pr = column_filters(cfg, prefix=p, **filters); clauses += c; params += pr
     if query:
         tc, tp = text_predicate(query, mode, distance)
         if via_index: clauses += tc; params += tp
         else:
             clauses.append(f"{p}id IN (SELECT id FROM {cfg['index']} WHERE " + " AND ".join(tc) + ")"); params += tp
-    return " AND ".join(clauses), params
+    return " AND ".join(clauses) if clauses else "TRUE", params
 
 def render(sql, params):
     """Human-runnable SQL with parameters inlined (display only; execution is always parameterised)."""

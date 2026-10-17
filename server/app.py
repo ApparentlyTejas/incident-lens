@@ -4,7 +4,7 @@ import json, sys
 from typing import Annotated, Literal, Optional
 from pydantic import Field
 from mcp.server.mcpserver import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError, ResourceError
 from . import tools as T, ledger, config, prompts, db
 
 def _call(fn, *a, **kw):
@@ -28,7 +28,7 @@ DS = Annotated[Literal["bgl", "openstack"], Field(description="bgl = Blue Gene/L
 FROM = Annotated[Optional[str], Field(description="Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.")]
 TO = Annotated[Optional[str], Field(description="Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.")]
 LEVELS = Annotated[Optional[list[str]], Field(description="Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.")]
-SEV = Annotated[Literal["all", "severe"], Field(description="'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL, TRACE). Ignored if `levels` is set.")]
+SEV = Annotated[Literal["all", "severe"], Field(description="'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.")]
 MODE = Annotated[Literal["terms", "phrase", "any", "fuzzy"], Field(description="terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).")]
 
 def _j(x): return json.dumps(x, default=str)
@@ -57,7 +57,7 @@ def search_logs(dataset: DS, query: Annotated[str, Field(description="Words or p
 
 @mcp.tool(description="""Events around one log entry: what happened just before and after. ENGINEER, after search_logs.
 Inputs: dataset, log_id (the `id` from a search hit), before_seconds / after_seconds (default 60/60, max 86400), scope, limit (default 40, max 100).
-Scope: bgl auto/same_node = same node only; any_node = every node in the window. openstack auto = same request_id if the entry has one, else same service; also same_service | any.
+Scope: bgl auto/same_node = same node only; any_node = every node in the window - same_request/same_service/any are OpenStack-only and error on bgl. openstack auto = same request_id if the entry has one, else same service; also same_service | any - same_request errors if the anchor entry has no request_id.
 Returns: the anchor entry, events ordered by time (anchor flagged), total events in the window and truncated flag (if truncated the events closest in time are kept).
 Events are context, not proof of causation. DO NOT use to count occurrences.""")
 def nearby_events(dataset: DS, log_id: Annotated[int, Field(description="`id` of the anchor entry from search_logs rows.")],
@@ -70,7 +70,7 @@ def nearby_events(dataset: DS, log_id: Annotated[int, Field(description="`id` of
 Inputs: dataset, group_by, optional from_ts/to_ts, optional text query (+mode), levels or severity, component, node, service, alert, limit (default 25).
 group_by: team (via the FICTIONAL ownership table), component, level, node, alert, template, type (bgl); service, component, level, http_status, http_method, template, team (openstack).
 Returns: rows of name/entries/share_pct, total_matches, groups_total, truncated. Counts are log ENTRIES, not incidents - pair with `episodes` for occurrence claims.
-DO NOT use to read message text (search_logs) or to see change over time (trend).""")
+DO NOT use to read message text (search_logs) or to see change over time (trend). For group_by=template specifically, prefer `recurring_patterns` instead - it adds spread, first/last seen, and new-vs-recurring on top of the same counts.""")
 def count_by(dataset: DS, group_by: Annotated[str, Field(description="team | component | level | node | alert | template | type (bgl); team | service | component | level | http_status | http_method | template (openstack).")],
              from_ts: FROM = None, to_ts: TO = None, query: Annotated[Optional[str], Field(description="Optional text filter on the message.")] = None, mode: MODE = "terms",
              levels: LEVELS = None, severity: SEV = "all", component: Optional[str] = None, node: Optional[str] = None,
@@ -99,12 +99,23 @@ def episodes(dataset: DS, from_ts: FROM = None, to_ts: TO = None, query: Optiona
 
 @mcp.tool(description="""Most frequent message templates (message types with numbers/ids/hosts normalised to <*>) in a period, with counts, spread across nodes/components, first/last seen, active days, and whether the template first appeared inside the period. TEAM LEAD and MANAGER: 'which problems recur'.
 Inputs: dataset, optional from_ts/to_ts, levels/severity, component, node, service, alert, limit (default 15).
-Returns: ranked templates with entries/share_pct, templates_total, returned_templates_cover_pct, truncated. Templates come from a simple normaliser, not Loghub's labelled templates.
-DO NOT use to read individual events (search_logs).""")
+Returns: ranked templates with entries/share_pct, templates_total, returned_templates_cover_pct, truncated, new_in_period (null unless from_ts/to_ts is given explicitly - pass a bounded recent window, e.g. the last 4 weeks, to tell a genuinely new template apart from the corpus's oldest ones). Templates come from a simple normaliser, not Loghub's labelled templates.
+DO NOT use to read individual events (search_logs). Ranks by raw frequency only - for a pattern that's quietly concentrated on one node/service rather than loud and widespread, use `concentration_anomalies` instead; the two rank the same data differently on purpose.""")
 def recurring_patterns(dataset: DS, from_ts: FROM = None, to_ts: TO = None, levels: LEVELS = None, severity: SEV = "all",
                        component: Optional[str] = None, node: Optional[str] = None, service: Optional[str] = None,
                        alert: Optional[str] = None, limit: int = 15) -> dict:
     return _call(T.recurring_patterns, dataset, from_ts, to_ts, levels, severity, component, node, service, alert, limit)
+
+@mcp.tool(description="""Finds patterns a frequency ranking buries: templates ranked by CONCENTRATION (entries / distinct nodes-or-services affected), not raw count. A pattern with thousands of entries confined to one single node is a different, more actionable finding (go check that node's hardware/config) than the same count spread across the whole system (more likely systemic) - recurring_patterns' frequency-only ranking can put the first one dozens of rows down, this puts it first. TEAM LEAD and MANAGER: 'what's quietly wrong with one specific part of the system that raw frequency hides'.
+Inputs: dataset, optional from_ts/to_ts, levels/severity, component, node, service, alert, min_entries (default 50, excludes one-off rarities - those aren't 'concentrated', just rare), limit (default 10).
+Returns: ranked templates with entries, distinct_partitions, concentration_ratio (entries / distinct_partitions), templates_total, truncated. Templates come from a simple normaliser, not Loghub's labelled templates.
+DO NOT use for a plain most-frequent ranking (recurring_patterns) or to read individual events (search_logs).""")
+def concentration_anomalies(dataset: DS, from_ts: FROM = None, to_ts: TO = None, levels: LEVELS = None, severity: SEV = "all",
+                            component: Optional[str] = None, node: Optional[str] = None, service: Optional[str] = None,
+                            alert: Optional[str] = None,
+                            min_entries: Annotated[int, Field(description="Exclude templates with fewer entries than this - a one-off rare event isn't 'concentrated', it's just rare.")] = 50,
+                            limit: int = 10) -> dict:
+    return _call(T.concentration_anomalies, dataset, from_ts, to_ts, levels, severity, component, node, service, alert, min_entries, limit)
 
 @mcp.tool(description="""OpenStack-only request latency and error summary: request count, avg/p50/p95/p99/max latency, ERROR/CRITICAL entry rate, WARNING rate and HTTP 5xx rate, grouped by service (default), component, http_status, http_method, hour or day.
 ENGINEER and TEAM LEAD: 'which service is slow or erroring'. Inputs: optional from_ts/to_ts, service, group_by, levels, limit.
@@ -120,9 +131,21 @@ Inputs: dataset (optional), component (optional; for openstack the key is the se
 def team_ownership(dataset: Optional[Literal["bgl", "openstack"]] = None, component: Optional[str] = None) -> dict:
     return _call(T.team_ownership, dataset, component)
 
-@mcp.tool(description="""Replay any earlier tool result from the evidence ledger by its evidence_id (e.g. 'E-0007'): the tool, arguments, the exact SQL that ran, counts, truncation flag and result. ALL ROLES, to verify or re-quote a number. Does not run new queries.""")
+@mcp.tool(description="""Replay any earlier tool result from the evidence ledger by its evidence_id (e.g. 'E-0007'): the tool, arguments, the exact SQL that ran, counts, truncation flag, result, and the entry's tamper-evident hash. ALL ROLES, to verify or re-quote a number. Does not run new queries.""")
 def get_evidence(evidence_id: Annotated[str, Field(description="Id like 'E-0007' returned by any tool.")]) -> dict:
     return _call(T.get_evidence, evidence_id)
+
+@mcp.tool(description="""Checks whether the evidence ledger has been tampered with: every entry is hash-chained to the one before it (sha256 of the previous entry's hash + this entry's own content), independently recomputed from the raw stored rows here, not trusted from storage. ALL ROLES, to back up a claim that 'every number traces to a query that actually ran' with something checkable rather than just asserted. Takes no inputs; runs no SereneDB queries (SQLite ledger only).""")
+def verify_ledger_integrity() -> dict:
+    return _call(T.verify_ledger_integrity)
+
+@mcp.tool(description="""Packages a finished answer into one shareable markdown report: the answer text plus, for every cited evidence_id, its tool, scope, total_matches, exact SQL and ledger hash. ALL ROLES, but OPT-IN ONLY - call it when the user asks for a written report, a summary to share/hand off, or similar, not automatically after every ordinary answer. Runs no new queries and computes no new numbers - it only replays what the cited evidence_ids already say, so the report can never show a figure the ledger doesn't back. Also flags (does not block on) any [E-xxxx] mentioned in the answer text that wasn't included in evidence_ids.
+Inputs: title, body (the answer text, four-block contract included, with [E-xxxx] citations inline), evidence_ids (every id cited in body - use ALL of them, not a subset).
+DO NOT call this after a normal question-and-answer where nothing was asked to be shared; DO NOT use it to compute anything new - call the other tools first and only report on evidence_ids they actually returned.""")
+def generate_report(title: Annotated[str, Field(description="Short report title, e.g. 'ciod job-launch failures - team lead review'.")],
+                    body: Annotated[str, Field(description="The full answer text, four-block contract included, with [E-xxxx] citations inline.")],
+                    evidence_ids: Annotated[list[str], Field(description="Every evidence_id cited in body, e.g. ['E-0097','E-0101'].")]) -> dict:
+    return _call(T.generate_report, title, body, evidence_ids)
 
 # ---- prompts (role workflows + answer contract) ----
 @mcp.prompt(description="ENGINEER workflow: find the failure, see what happened around it, give one next diagnostic check.")
@@ -152,7 +175,9 @@ def ownership() -> str:
 
 @mcp.resource("evidence://{evidence_id}", description="A stored evidence-ledger entry.")
 def evidence(evidence_id: str) -> str:
-    return _j(ledger.get(evidence_id))
+    e = ledger.get(evidence_id)
+    if not e: raise ResourceError(f"unknown evidence_id {evidence_id!r}; known ids: {ledger.all_ids()[-10:]}")
+    return _j(e)
 
 if __name__ == "__main__":
     if "--http" in sys.argv: mcp.run("streamable-http")
