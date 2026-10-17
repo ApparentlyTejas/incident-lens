@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# local SereneDB binary + data dir (downloaded by scripts/start_serenedb.sh)
+.serenedb/
+
+# evidence ledger (regenerated locally, not meant to be shared state)
+ledger/*.sqlite
+
+# raw / processed corpus (downloaded by scripts/setup.sh; too large for git)
+data/raw/
+data/processed/
+
+eval/ground_truth.json
+eval/results.md
+
+.DS_Store
