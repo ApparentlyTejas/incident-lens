@@ -1,0 +1,6 @@
+# Fill after exploring the FULL data. Defaults below work on the 2k samples (scripts/setup.sh --sample).
+term: "parity error"
+typo_term: "paritty"
+from: "2005-06-01"
+to: "2006-02-01"
+request_id: ""
