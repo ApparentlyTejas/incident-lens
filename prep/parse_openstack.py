@@ -7,7 +7,11 @@ or, without a request context:
   <logfile> <date> <time> <pid> <LEVEL> <logger> [-] <message>   (or plain message)
 Service = prefix of the logfile (nova-api / nova-compute / nova-scheduler).
 For nova-api wsgi lines we also extract http method, url, status, len, latency ('time: x').
-Anomaly labels (if an anomaly_labels.txt is supplied) are joined on request_id.
+Anomaly label: Loghub's anomaly_labels.txt lists VM INSTANCE ids, not request ids - instance ids
+never appear as a line's request_id, so joining on request_id (as an earlier version of this
+script did) silently matches nothing. The actual ground truth is which raw file a line came from:
+every line in a file whose name contains "abnormal" is anomalous, every line from a file whose
+name contains "normal" is not. --labels is only used to report how many instances were flagged.
 
 Usage: python prep/parse_openstack.py <out.parquet> <log> [<log> ...] [--labels anomaly_labels.txt]
 """
@@ -42,27 +46,20 @@ def parse(line):
     return ts, service, int(pid), level, comp, req, tenant, meth, url, status, lat, template(rest), rest
 
 def main(out, files, labels=None):
-    bad_reqs, good_reqs = set(), set()
     if labels:
         uuid = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-        mode = None
-        for ln in open(labels, errors="replace"):
-            low = ln.strip().lower()
-            if not low: continue
-            m = uuid.search(low)
-            if not m:                       # header line such as "Anomaly" / "Normal"
-                mode = "bad" if "anomal" in low else ("good" if "normal" in low else mode); continue
-            kind = "bad" if "anomal" in low else ("good" if "normal" in low else mode)
-            (bad_reqs if kind == "bad" else good_reqs).add(m.group(0))
-        print(f"labels: {len(bad_reqs)} anomalous, {len(good_reqs)} normal request ids")
+        instances = {m.group(0) for ln in open(labels, errors="replace") for m in [uuid.search(ln)] if m}
+        print(f"labels: {len(instances)} anomalous VM instance id(s) named in {labels} (for reference only; "
+              "the anomalous column below is set from which raw file each line came from)")
     cols = {k: [] for k in SCHEMA.names}
     n = bad = 0
     for fp in files:
+        anomalous = "abnormal" in fp.lower() if any("abnormal" in f.lower() or "normal" in f.lower() for f in files) else None
         for line in open(fp, encoding="utf-8", errors="replace"):
             r = parse(line)
             if r is None: bad += 1; continue
             n += 1
-            row = (n, *r[:-2], (r[5] in bad_reqs) if (labels and r[5] and (r[5] in bad_reqs or r[5] in good_reqs)) else None, r[-2], r[-1])
+            row = (n, *r[:-2], anomalous, r[-2], r[-1])
             for k, v in zip(SCHEMA.names, row): cols[k].append(v)
     pq.write_table(pa.table(cols, schema=SCHEMA), out)
     print(f"openstack: {n} rows parsed, {bad} skipped -> {out}")
