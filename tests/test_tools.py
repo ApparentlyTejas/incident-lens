@@ -83,3 +83,12 @@ async def test_mcp_surface():
     assert {"search_logs", "nearby_events", "count_by", "trend", "episodes", "corpus_overview", "get_evidence"} <= names
     for t in await mcp.list_tools():
         assert len(t.description) > 200 and "DO NOT" in t.description or t.name in ("get_evidence", "team_ownership")
+
+@pytest.mark.asyncio
+async def test_mcp_surfaces_our_input_errors_not_just_pydantic_ones():
+    # a ValueError raised inside the tool body (bad group_by) must still reach the model as a
+    # readable message, same as a pydantic schema error - the SDK silently drops any OTHER
+    # exception's text, so this is the one thing that regresses invisibly if _call is removed.
+    from mcp.server.mcpserver.exceptions import ToolError
+    with pytest.raises(ToolError, match="group_by must be one of"):
+        await mcp.call_tool("count_by", {"dataset": "bgl", "group_by": "http_status"})
