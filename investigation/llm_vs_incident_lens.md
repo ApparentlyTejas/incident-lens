@@ -34,12 +34,12 @@ dataset's reputation," not analysis of the actual file.
 
 From `investigation/worked_investigation.md`, every number cited to a replayable evidence id:
 
-- The dominant recurring problem is **`ciod` job-launch failures** ("invalid or missing program image"), an **APP**-component issue, not a KERNEL/memory issue - the plain LLM named the wrong component and the wrong category of problem entirely `[E-0097]`.
-- **112,584 entries, 52,763 episodes** over the full period, not "a few hundred to low-thousands per week" - the real rate is roughly two orders of magnitude higher than the LLM's guess `[E-0101]`.
-- **1,024 distinct nodes** affected - essentially the whole system, not "a small subset of bad nodes/racks" `[E-0099]`.
-- Still **growing** in the most recent four weeks of data, up 224 percent, not a steady background rate `[E-0109]`.
-- A concrete, inspectable example: job id 65641 (`raptor`) failing identically across dozens of nodes within milliseconds `[E-0098]`, and a named team (Application Support, via the ownership
-  table) to hand it to `[E-0102]`.
+- The dominant recurring problem is **`ciod` job-launch failures** ("invalid or missing program image"), an **APP**-component issue, not a KERNEL/memory issue - the plain LLM named the wrong component and the wrong category of problem entirely `[E-0001]`.
+- **112,584 entries, 52,763 episodes** over the full period, not "a few hundred to low-thousands per week" - the real rate is roughly two orders of magnitude higher than the LLM's guess `[E-0005]`.
+- **1,024 distinct nodes** affected - essentially the whole system, not "a small subset of bad nodes/racks" `[E-0003]`.
+- Still **growing** in the most recent four weeks of data, up 224 percent, not a steady background rate `[E-0009]`.
+- A concrete, inspectable example: job id 65641 (`raptor`) failing identically across dozens of nodes within milliseconds `[E-0002]`, and a named team (Application Support, via the ownership
+  table) to hand it to `[E-0006]`.
 
 ## Why this comparison matters
 
@@ -47,7 +47,7 @@ The plain LLM's answer is fluent, plausible, and specific-sounding - it even pic
 failure mode (memory/ECC errors genuinely do occur in these logs). That is precisely the danger:
 **a wrong-but-confident answer and a right-and-cited answer read the same way in prose.** The only
 difference is whether every claim can be replayed against a real query. Incident Lens's answer is
-checkable in one command (`get_evidence("E-0099")`); the plain LLM's answer is not checkable at
+checkable in one command (`get_evidence("E-0003")`); the plain LLM's answer is not checkable at
 all, by its own admission.
 
 This is also why Incident Lens's four-block answer contract and evidence ledger are not

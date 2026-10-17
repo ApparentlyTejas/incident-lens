@@ -23,7 +23,11 @@ def resolve(text, params):
     return text
 
 async def ask(question, role, dataset, max_steps=12):
-    """Same loop as cli/ask.py, inlined so eval/run.py has no import-order dependency on it."""
+    """Same loop as cli/ask.py, inlined so eval/run.py has no import-order dependency on it.
+    Raises on a tool/API error rather than swallowing it - the caller in main() is the one
+    that must decide whether one bad question should lose the whole golden-set run's results."""
+    question = (question or "").strip()
+    if not question: raise ValueError("question must not be empty")
     pr = await mcp.get_prompt(ROLE_PROMPT[role], {"topic": question, "dataset": dataset})
     system = pr.messages[0].content.text
     tools = [{"name": t.name, "description": t.description, "input_schema": getattr(t, "input_schema", None) or t.inputSchema}
@@ -54,6 +58,8 @@ async def main():
     golden = yaml.safe_load((ROOT / "eval/golden.yaml").read_text())
     params = yaml.safe_load((ROOT / "eval/params.yaml").read_text())
     if a.ids: golden = [q for q in golden if q["id"] in a.ids.split(",")]
+    if not a.dry_run and not os.environ.get("ANTHROPIC_API_KEY"):
+        sys.exit("ANTHROPIC_API_KEY is not set - export it, or use --dry-run to resolve params without calling the API.")
 
     rows, sections = [], []
     first_tool_hits = total_with_expected = 0
@@ -63,7 +69,15 @@ async def main():
             rows.append((q["id"], q["role"], q["first_tool"] or "-", "(dry-run)", "(dry-run)", "-"))
             sections.append(f"## {q['id']} ({q['role']})\n\n**Question:** {question}\n\n**Expected first tool:** {q['first_tool'] or 'n/a (refusal case)'}\n")
             continue
-        text, trace = await ask(question, q["role"], "bgl")
+        # one question failing (a tool error, a transient API error) must not lose every other
+        # question's already-collected results - eval/results.md is only written once, at the end
+        try:
+            text, trace = await ask(question, q["role"], "bgl")
+        except Exception as e:
+            rows.append((q["id"], q["role"], q["first_tool"] or "-", "ERROR", str(e)[:80], "-"))
+            sections.append(f"## {q['id']} ({q['role']})\n\n**Question:** {question}\n\n**FAILED:** {e}\n")
+            print(f"  {q['id']}: FAILED - {e}")
+            continue
         actual_first = trace[0][0] if trace else None
         if q["first_tool"]:
             total_with_expected += 1
