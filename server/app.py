@@ -4,7 +4,17 @@ import json, sys
 from typing import Annotated, Literal, Optional
 from pydantic import Field
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from . import tools as T, ledger, config, prompts, db
+
+def _call(fn, *a, **kw):
+    """Run a tool function, turning our deliberate input-validation ValueErrors into ToolError.
+    The SDK shows a ToolError's message to the model so it can self-correct; any other exception
+    is deliberately reported with no detail, so this must not catch anything but ValueError."""
+    try:
+        return fn(*a, **kw)
+    except ValueError as e:
+        raise ToolError(str(e)) from e
 
 mcp = MCPServer(
     "incident-lens",
@@ -28,7 +38,7 @@ USE FIRST to learn the data scope, available levels and components, and for 'acr
 Inputs: dataset (optional; omit for both). Returns: exact counts over every row, no sampling.
 DO NOT use for finding specific messages (use search_logs) or time-bounded counts (use count_by).""")
 def corpus_overview(dataset: Annotated[Optional[Literal["bgl", "openstack"]], Field(description="Omit for both datasets.")] = None) -> dict:
-    return T.corpus_overview(dataset)
+    return _call(T.corpus_overview, dataset)
 
 @mcp.tool(description="""Full-text search over log messages (SereneDB inverted index, BM25-ranked, highlighted snippets) with time/level/component/node filters. ENGINEER's starting point: 'find the error'.
 Inputs: dataset, query, mode (terms|phrase|any|fuzzy), optional from_ts/to_ts, levels or severity, component, node (bgl), service (openstack), order (relevance|time), limit (default 20, max 100).
@@ -43,7 +53,7 @@ def search_logs(dataset: DS, query: Annotated[str, Field(description="Words or p
                 order: Annotated[Literal["relevance", "time"], Field(description="relevance = BM25; time = oldest first.")] = "relevance",
                 limit: Annotated[int, Field(description="Rows to return, 1-100, default 20.")] = 20,
                 fuzzy_distance: Annotated[int, Field(description="Max edits per word in fuzzy mode (1-2).")] = 1) -> dict:
-    return T.search_logs(dataset, query, mode, from_ts, to_ts, levels, severity, component, node, service, order, limit, fuzzy_distance)
+    return _call(T.search_logs, dataset, query, mode, from_ts, to_ts, levels, severity, component, node, service, order, limit, fuzzy_distance)
 
 @mcp.tool(description="""Events around one log entry: what happened just before and after. ENGINEER, after search_logs.
 Inputs: dataset, log_id (the `id` from a search hit), before_seconds / after_seconds (default 60/60, max 86400), scope, limit (default 40, max 100).
@@ -54,7 +64,7 @@ def nearby_events(dataset: DS, log_id: Annotated[int, Field(description="`id` of
                   before_seconds: int = 60, after_seconds: int = 60,
                   scope: Annotated[Literal["auto", "same_node", "any_node", "same_request", "same_service", "any"], Field(description="See tool description.")] = "auto",
                   limit: int = 40) -> dict:
-    return T.nearby_events(dataset, log_id, before_seconds, after_seconds, scope, limit)
+    return _call(T.nearby_events, dataset, log_id, before_seconds, after_seconds, scope, limit)
 
 @mcp.tool(description="""Exact counts grouped by component, team, level, node/service, alert, template etc. over the WHOLE stated scope (aggregated in the database, never a sample). TEAM LEAD and MANAGER: 'which components/teams have the most problems'.
 Inputs: dataset, group_by, optional from_ts/to_ts, optional text query (+mode), levels or severity, component, node, service, alert, limit (default 25).
@@ -65,7 +75,7 @@ def count_by(dataset: DS, group_by: Annotated[str, Field(description="team | com
              from_ts: FROM = None, to_ts: TO = None, query: Annotated[Optional[str], Field(description="Optional text filter on the message.")] = None, mode: MODE = "terms",
              levels: LEVELS = None, severity: SEV = "all", component: Optional[str] = None, node: Optional[str] = None,
              service: Optional[str] = None, alert: Annotated[Optional[str], Field(description="bgl only: labelled alert category.")] = None, limit: int = 25) -> dict:
-    return T.count_by(dataset, group_by, from_ts, to_ts, query, mode, levels, severity, component, node, service, alert, limit)
+    return _call(T.count_by, dataset, group_by, from_ts, to_ts, query, mode, levels, severity, component, node, service, alert, limit)
 
 @mcp.tool(description="""Counts per time bucket (hour|day|week) over a stated absolute period, with growth against the immediately preceding period of equal length. TEAM LEAD and MANAGER: 'is it getting worse?'.
 Inputs: dataset, bucket, optional from_ts/to_ts, optional text query (+mode), levels/severity, component, node, service, alert, optional group_by (component|team|level|... top groups per bucket, top_groups default 5).
@@ -75,7 +85,7 @@ def trend(dataset: DS, bucket: Literal["hour", "day", "week"] = "week", from_ts:
           query: Optional[str] = None, mode: MODE = "terms", levels: LEVELS = None, severity: SEV = "all",
           component: Optional[str] = None, node: Optional[str] = None, service: Optional[str] = None, alert: Optional[str] = None,
           group_by: Annotated[Optional[str], Field(description="Optional series split, e.g. component or team.")] = None, top_groups: int = 5) -> dict:
-    return T.trend(dataset, bucket, from_ts, to_ts, query, mode, levels, severity, component, node, service, alert, group_by, top_groups)
+    return _call(T.trend, dataset, bucket, from_ts, to_ts, query, mode, levels, severity, component, node, service, alert, group_by, top_groups)
 
 @mcp.tool(description="""Entries vs episodes: collapses bursts of matching entries on the same node (bgl) or service (openstack) when consecutive entries are within gap_seconds (default 300). ALL ROLES, whenever an answer talks about how many TIMES something happened.
 Inputs: dataset, optional from_ts/to_ts, optional text query (+mode), levels/severity, component, node, service, alert, gap_seconds (default 300), top (default 10).
@@ -85,7 +95,7 @@ def episodes(dataset: DS, from_ts: FROM = None, to_ts: TO = None, query: Optiona
              levels: LEVELS = None, severity: SEV = "all", component: Optional[str] = None, node: Optional[str] = None,
              service: Optional[str] = None, alert: Optional[str] = None,
              gap_seconds: Annotated[int, Field(description="Max seconds between consecutive entries within one episode. Default 300.")] = 300, top: int = 10) -> dict:
-    return T.episodes(dataset, from_ts, to_ts, query, mode, levels, severity, component, node, service, alert, gap_seconds, top)
+    return _call(T.episodes, dataset, from_ts, to_ts, query, mode, levels, severity, component, node, service, alert, gap_seconds, top)
 
 @mcp.tool(description="""Most frequent message templates (message types with numbers/ids/hosts normalised to <*>) in a period, with counts, spread across nodes/components, first/last seen, active days, and whether the template first appeared inside the period. TEAM LEAD and MANAGER: 'which problems recur'.
 Inputs: dataset, optional from_ts/to_ts, levels/severity, component, node, service, alert, limit (default 15).
@@ -94,7 +104,7 @@ DO NOT use to read individual events (search_logs).""")
 def recurring_patterns(dataset: DS, from_ts: FROM = None, to_ts: TO = None, levels: LEVELS = None, severity: SEV = "all",
                        component: Optional[str] = None, node: Optional[str] = None, service: Optional[str] = None,
                        alert: Optional[str] = None, limit: int = 15) -> dict:
-    return T.recurring_patterns(dataset, from_ts, to_ts, levels, severity, component, node, service, alert, limit)
+    return _call(T.recurring_patterns, dataset, from_ts, to_ts, levels, severity, component, node, service, alert, limit)
 
 @mcp.tool(description="""OpenStack-only request latency and error summary: request count, avg/p50/p95/p99/max latency, ERROR/CRITICAL entry rate, WARNING rate and HTTP 5xx rate, grouped by service (default), component, http_status, http_method, hour or day.
 ENGINEER and TEAM LEAD: 'which service is slow or erroring'. Inputs: optional from_ts/to_ts, service, group_by, levels, limit.
@@ -103,16 +113,16 @@ DO NOT use for BGL (it has no latency) or for message text.""")
 def latency_summary(from_ts: FROM = None, to_ts: TO = None, service: Optional[str] = None,
                     group_by: Literal["service", "component", "http_status", "http_method", "hour", "day", "none"] = "service",
                     levels: LEVELS = None, limit: int = 25) -> dict:
-    return T.latency_summary(from_ts, to_ts, service, group_by, levels, limit)
+    return _call(T.latency_summary, from_ts, to_ts, service, group_by, levels, limit)
 
 @mcp.tool(description="""Component -> team ownership mapping (FICTIONAL, invented for this challenge). TEAM LEAD and MANAGER: 'who owns this?'.
 Inputs: dataset (optional), component (optional; for openstack the key is the service). Returns: dataset/component/team rows. Use it to name an owner for a recommendation.""")
 def team_ownership(dataset: Optional[Literal["bgl", "openstack"]] = None, component: Optional[str] = None) -> dict:
-    return T.team_ownership(dataset, component)
+    return _call(T.team_ownership, dataset, component)
 
 @mcp.tool(description="""Replay any earlier tool result from the evidence ledger by its evidence_id (e.g. 'E-0007'): the tool, arguments, the exact SQL that ran, counts, truncation flag and result. ALL ROLES, to verify or re-quote a number. Does not run new queries.""")
 def get_evidence(evidence_id: Annotated[str, Field(description="Id like 'E-0007' returned by any tool.")]) -> dict:
-    return T.get_evidence(evidence_id)
+    return _call(T.get_evidence, evidence_id)
 
 # ---- prompts (role workflows + answer contract) ----
 @mcp.prompt(description="ENGINEER workflow: find the failure, see what happened around it, give one next diagnostic check.")
