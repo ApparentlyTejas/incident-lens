@@ -1,6 +1,7 @@
-# Fill after exploring the FULL data. Defaults below work on the 2k samples (scripts/setup.sh --sample).
+# Filled from the full corpus (data/processed/*.parquet); request_id has 12 nova-api/nova-compute
+# lines in the real data (a typical small request, not truncated by nearby_events' default limit).
 term: "parity error"
 typo_term: "paritty"
 from: "2005-06-01"
 to: "2006-02-01"
-request_id: ""
+request_id: "74d58b45-ade6-4af8-97ea-67d6c7d66e03"
