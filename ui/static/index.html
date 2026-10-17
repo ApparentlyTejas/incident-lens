@@ -106,6 +106,15 @@ button{font-family:var(--body)}
 .role-btn.active{border-color:var(--cyan); color:var(--cyan); background:rgba(53,228,224,.06); box-shadow:0 0 0 1px var(--cyan) inset}
 .role-btn.active small{color:var(--cyan-dim)}
 
+.dataset-row{display:flex; align-items:center; gap:10px; padding:0 22px 14px}
+.dataset-row .dl{font-family:var(--mono); font-size:10.5px; color:var(--text-mute); letter-spacing:.1em; text-transform:uppercase}
+.ds-toggle{display:flex; gap:6px}
+.ds-btn{
+  padding:6px 13px; border-radius:7px; border:1px solid var(--border); background:var(--surface);
+  color:var(--text-dim); font-family:var(--mono); font-size:11.5px; letter-spacing:.02em; cursor:pointer; transition:all .15s;
+}
+.ds-btn.active{border-color:var(--amber); color:var(--amber); background:rgba(242,169,60,.08)}
+
 .transcript{flex:1; padding:4px 22px 10px; display:flex; flex-direction:column; gap:14px; overflow-y:auto}
 .msg{max-width:92%; animation:rise .3s ease both}
 @keyframes rise{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
@@ -275,6 +284,13 @@ button{font-family:var(--body)}
       <button class="role-btn" data-role="lead">TEAM LEAD<small>recurrence &amp; ownership</small></button>
       <button class="role-btn" data-role="manager">MANAGER<small>what matters first</small></button>
     </div>
+    <div class="dataset-row">
+      <span class="dl">Dataset</span>
+      <div class="ds-toggle">
+        <button class="ds-btn active" data-dataset="bgl">BGL</button>
+        <button class="ds-btn" data-dataset="openstack">OpenStack</button>
+      </div>
+    </div>
     <div class="presets" id="presets"></div>
     <div class="transcript" id="transcript"></div>
     <div class="composer">
@@ -322,24 +338,46 @@ button{font-family:var(--body)}
 <script>
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 let role = "engineer";
+let dataset = "bgl";
 let lastHash = null;
 
 const PRESETS = {
-  engineer: ["Find 'parity error' in BGL and show what happened around the first hit.",
-             "Is the ciod job-launch failure always the same node?"],
-  lead:     ["Which problems recur most in BGL and which team owns them?",
-             "Is the ciod job-launch failure getting worse week over week?"],
-  manager:  ["Of the recurring problems in BGL, what deserves attention first right now?",
-             "Give me the whole-corpus picture across BGL and OpenStack."],
+  bgl: {
+    engineer: ["Find 'parity error' in BGL and show what happened around the first hit.",
+               "Is the ciod job-launch failure always the same node?"],
+    lead:     ["Which problems recur most in BGL and which team owns them?",
+               "Is the ciod job-launch failure getting worse week over week?"],
+    manager:  ["Of the recurring problems in BGL, what deserves attention first right now?",
+               "Give me the whole-corpus picture across BGL and OpenStack."],
+  },
+  openstack: {
+    engineer: ["Find the InvalidDiskInfo failure in nova-compute and show what happened around the first hit.",
+               "Is that nova-compute failure always the same VM instance?"],
+    lead:     ["Which problems recur most in OpenStack and which team owns them?",
+               "Is the nova-compute disk-info failure concentrated in one place or spread out?"],
+    manager:  ["Of the recurring problems in OpenStack, what deserves attention first right now?",
+               "Give me the whole-corpus picture across BGL and OpenStack."],
+  },
 };
 
 function renderPresets(){
-  $('#presets').innerHTML = PRESETS[role].map(p=>`<div class="preset" data-q="${p.replace(/"/g,'&quot;')}">${p}</div>`).join('');
+  $('#presets').innerHTML = PRESETS[dataset][role].map(p=>`<div class="preset" data-q="${p.replace(/"/g,'&quot;')}">${p}</div>`).join('');
   $$('.preset').forEach(el=>el.onclick=()=>{ $('#question').value = el.dataset.q; $('#question').focus(); });
 }
+let conversationHistory = [];
 $$('.role-btn').forEach(btn=>btn.onclick=()=>{
   $$('.role-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
   role = btn.dataset.role; renderPresets();
+  // a different role is really a different conversation (its own system prompt/persona) -
+  // carrying the old role's history into it would confuse the model, not help it
+  conversationHistory = [];
+});
+$$('.ds-btn').forEach(btn=>btn.onclick=()=>{
+  $$('.ds-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  dataset = btn.dataset.dataset; renderPresets();
+  // the system prompt literally says "investigating {dataset} logs" - switching datasets
+  // mid-conversation would leave old history talking about the other one, so reset here too
+  conversationHistory = [];
 });
 renderPresets();
 
@@ -574,9 +612,9 @@ async function ask(){
 
   try{
     const resp = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({role, dataset:'bgl', question:q})});
+      body: JSON.stringify({role, dataset, question:q, history: conversationHistory})});
     const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf='';
-    let answered = false;
+    let answered = false, answerText = null;
     while(true){
       const {done, value} = await reader.read(); if(done) break;
       buf += decoder.decode(value, {stream:true});
@@ -595,7 +633,7 @@ async function ask(){
           thinkEl.querySelector('.bubble').innerHTML = `<div class="thinking">${escapeHtml(data.text)}</div>`;
         } else if(ev === 'answer'){
           thinkEl.querySelector('.bubble').innerHTML = renderAnswer(data.text);
-          answered = true;
+          answered = true; answerText = data.text;
         } else if(ev === 'error'){
           thinkEl.querySelector('.bubble').innerHTML = `<div class="thinking" style="color:var(--critical)">${escapeHtml(data.message)}</div>`;
           answered = true;
@@ -603,6 +641,11 @@ async function ask(){
       }
     }
     if(!answered) thinkEl.querySelector('.bubble').innerHTML = '<div class="thinking">(no answer text returned)</div>';
+    // only a REAL answer joins the history a follow-up question would see - an error turn
+    // (e.g. missing API key) must not get replayed back to the model as if it were context
+    if(answerText){
+      conversationHistory.push({role:'user', content:q}, {role:'assistant', content:answerText});
+    }
   }catch(e){
     thinkEl.querySelector('.bubble').innerHTML = `<div class="thinking" style="color:var(--critical)">request failed: ${escapeHtml(e.message)}</div>`;
   }
