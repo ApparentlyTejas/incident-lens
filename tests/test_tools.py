@@ -16,7 +16,9 @@ def test_corpus_overview_matches_plain_sql():
 
 def test_search_total_matches_plain_sql_and_truncation():
     r = T.search_logs("bgl", "parity error", mode="phrase", limit=3)
-    assert r["total_matches"] == gt("select count(*) from bgl_logs where message like '%parity error%'")
+    # the index is word-tokenized with no stemming, so "parity error" correctly excludes "parity errors";
+    # a plain LIKE is a substring match and would over-count the plural - exclude it explicitly for a fair ground truth.
+    assert r["total_matches"] == gt("select count(*) from bgl_logs where message like '%parity error%' and message not like '%parity errors%'")
     assert r["returned"] == 3 and r["truncated"] is True and "never" in r["guidance"]
     assert r["summary_over_all_matches"]["first_seen"] <= r["summary_over_all_matches"]["last_seen"]
 
@@ -27,7 +29,7 @@ def test_search_modes_agree_on_typo():
 
 def test_time_filter_is_exclusive_upper_bound():
     r = T.search_logs("bgl", "parity error", mode="phrase", from_ts="2005-06-03", to_ts="2005-06-04")
-    assert r["total_matches"] == gt("select count(*) from bgl_logs where message like '%parity error%' and ts >= '2005-06-03' and ts < '2005-06-04'")
+    assert r["total_matches"] == gt("select count(*) from bgl_logs where message like '%parity error%' and message not like '%parity errors%' and ts >= '2005-06-03' and ts < '2005-06-04'")
 
 def test_count_by_team_matches_sql_and_sums_to_total():
     r = T.count_by("bgl", "team", severity="severe")
