@@ -20,6 +20,8 @@ SCHEMA = pa.schema([
 
 def parse(line):
     p = line.rstrip("\r\n").split(" ", 9)
+    if len(p) == 9:
+        p.append("")   # a real, if rare, shape: level with no message text at all (seen on some FATAL lines)
     if len(p) < 10:
         return None
     label, _unix, _date, node, tstr, _node2, typ, comp, level, msg = p
