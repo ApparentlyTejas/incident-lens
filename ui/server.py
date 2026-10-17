@@ -91,16 +91,37 @@ async def evidence_detail(request):
 def _sse(event, data):
     return {"event": event, "data": json.dumps(data, default=str)}
 
-async def run_conversation(role, dataset, question, client=None, max_steps=12):
+def _validate_history(history):
+    """history is prior (role, content) turns the CLIENT accumulates and resends - this server is
+    otherwise stateless across requests. Validated defensively the same way every other input
+    boundary in this project is: a malformed turn must raise a clean, readable ValueError, not
+    surface as a cryptic failure three calls deep inside the Anthropic SDK."""
+    if history is None: return []
+    if not isinstance(history, list): raise ValueError(f"history must be a list, got {type(history).__name__}")
+    out = []
+    for i, turn in enumerate(history):
+        if not isinstance(turn, dict) or turn.get("role") not in ("user", "assistant") or not isinstance(turn.get("content"), str):
+            raise ValueError(f"history[{i}] must be an object like {{'role': 'user'|'assistant', 'content': <string>}}, got {turn!r}")
+        out.append({"role": turn["role"], "content": turn["content"]})
+    return out
+
+async def run_conversation(role, dataset, question, client=None, max_steps=12, history=None):
     """The tool-calling loop, as a plain async generator of event dicts (not SSE-framed) so it can
     be driven directly in a test with a fake `client` - everything downstream of the Anthropic call
     (prompt building, mcp.call_tool, the real tools/SQL/ledger) is the real thing either way.
-    `client` is injectable; production passes nothing and gets a real anthropic.Anthropic()."""
+    `client` is injectable; production passes nothing and gets a real anthropic.Anthropic().
+    `history`: prior (role, content) turns from the same conversation, so a follow-up question
+    ("what about OpenStack?") actually has context - without this every question started a brand
+    new, memory-less conversation, which breaks the second a real user (or a judge) asks a follow-up."""
     question = (question or "").strip()
     role = role if role in ROLE_PROMPT else "engineer"
     dataset = dataset if dataset in ("bgl", "openstack") else "bgl"
     if not question:
         yield ("error", {"message": "question must not be empty"}); return
+    try:
+        history = _validate_history(history)
+    except ValueError as e:
+        yield ("error", {"message": str(e)}); return
     if client is None:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             yield ("error", {"message": "ANTHROPIC_API_KEY is not set in this server's environment. "
@@ -117,7 +138,7 @@ async def run_conversation(role, dataset, question, client=None, max_steps=12):
     except Exception as e:
         yield ("error", {"message": f"could not set up the conversation: {e}"})
         return
-    msgs = [{"role": "user", "content": question}]
+    msgs = history + [{"role": "user", "content": question}]
     yield ("start", {"role": role, "dataset": dataset, "question": question})
     try:
         for step in range(max_steps):
@@ -165,9 +186,10 @@ async def ask_stream(request: Request):
     question = (body.get("question") or "").strip()
     role = body.get("role") if body.get("role") in ROLE_PROMPT else "engineer"
     dataset = body.get("dataset") if body.get("dataset") in ("bgl", "openstack") else "bgl"
+    history = body.get("history")
 
     async def gen():
-        async for event, data in run_conversation(role, dataset, question):
+        async for event, data in run_conversation(role, dataset, question, history=history):
             yield _sse(event, data)
 
     return EventSourceResponse(gen())

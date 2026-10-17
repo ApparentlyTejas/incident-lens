@@ -35,10 +35,10 @@ class FakeClient:
     def __init__(self, script):
         self.messages = FakeMessages(script)
 
-async def drain(role, dataset, question, script, max_steps=12):
+async def drain(role, dataset, question, script, max_steps=12, history=None):
     client = FakeClient(script)
     events = []
-    async for ev, data in run_conversation(role, dataset, question, client=client, max_steps=max_steps):
+    async for ev, data in run_conversation(role, dataset, question, client=client, max_steps=max_steps, history=history):
         events.append((ev, data))
     return events, client.messages.calls
 
@@ -60,6 +60,27 @@ async def test_direct_answer_no_tool_calls():
     # the real system prompt and real tool schemas were actually built and passed through
     assert "ENGINEER" in calls[0]["system"]
     assert any(t["name"] == "search_logs" for t in calls[0]["tools"])
+
+@pytest.mark.asyncio
+async def test_follow_up_question_actually_sees_prior_conversation_history():
+    # without this, every question started a brand new memory-less conversation - a real user's
+    # (or a judge's) natural follow-up like "what about OpenStack?" would have zero context
+    history = [{"role": "user", "content": "first question"},
+               {"role": "assistant", "content": "first answer, cites [E-0001]"}]
+    script = [[block("text", text="follow-up answer")]]
+    events, calls = await drain("engineer", "bgl", "and what about that one specifically?", script, history=history)
+    assert ("answer", {"text": "follow-up answer"}) in events
+    sent = calls[0]["messages"]
+    assert len(sent) == 3   # the 2 prior turns + the new question
+    assert sent[0] == history[0] and sent[1] == history[1]
+    assert sent[2] == {"role": "user", "content": "and what about that one specifically?"}
+
+@pytest.mark.asyncio
+async def test_malformed_history_errors_cleanly_instead_of_crashing():
+    for bad in ("not a list", [{"role": "system", "content": "x"}], [{"role": "user", "content": 123}], [{"no": "role"}]):
+        events, calls = await drain("engineer", "bgl", "q", script=[], history=bad)
+        assert events[0][0] == "error" and "history" in events[0][1]["message"]
+        assert calls == []
 
 @pytest.mark.asyncio
 async def test_multi_step_tool_call_hits_the_real_tool_and_real_ledger():
