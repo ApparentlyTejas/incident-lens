@@ -7,6 +7,8 @@ The database searches and calculates; Claude explains; every number traces to a 
 
 National AI Hackathon 2026 (SchubKI) · challenge "Making Sense of Logs" · partner SereneDB
 
+**Judging this submission?** Jump straight to [How this meets the brief](#how-this-meets-the-brief) for a one-line-per-criterion map from the rubric to exactly where the evidence lives - including both special awards.
+
 ## What it does
 
 | Role | Question | Tools Claude picks | Next step it gives |
