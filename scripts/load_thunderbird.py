@@ -6,7 +6,13 @@ openstack_logs, or ownership, and never drops anything the main load.py created.
 
 Usage:
   python prep/parse_thunderbird.py data/raw/Thunderbird.log data/processed/thunderbird.parquet [--limit N]
-  python scripts/load_thunderbird.py data/processed/thunderbird.parquet
+  python scripts/load_thunderbird.py data/processed/thunderbird.parquet [--limit N]
+
+--limit here (separate from parse_thunderbird.py's own --limit) caps how many of the already-parsed
+rows get loaded into SereneDB, without re-parsing. Added after a real OOM kill loading all 211M parsed
+rows at once on an 8GB-RAM dev machine - SereneDB has no documented bulk-load memory ceiling, and this
+host doesn't have the headroom to find it. A bounded load is still a genuine multi-million-row scale
+demonstration; it's just honest about what this specific machine can hold at once.
 """
 import argparse, os, sys, time, pathlib, psycopg
 
@@ -16,6 +22,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("parquet")
     ap.add_argument("--dsn", default=DSN)
+    ap.add_argument("--limit", type=int, default=None, help="load only the first N already-parsed rows (memory-bounded demo load)")
     a = ap.parse_args()
     p = pathlib.Path(a.parquet).resolve()
     if not p.exists():
@@ -24,7 +31,8 @@ def main():
 
     conn.execute("DROP TABLE IF EXISTS thunderbird_logs")
     t = time.time()
-    conn.execute(f"CREATE TABLE thunderbird_logs AS SELECT * FROM read_parquet('{p}')")
+    limit_clause = f" LIMIT {a.limit}" if a.limit else ""
+    conn.execute(f"CREATE TABLE thunderbird_logs AS SELECT * FROM read_parquet('{p}'){limit_clause}")
     print(f"table loaded in {time.time()-t:.1f}s")
 
     # the search dictionary is shared infrastructure sql/indexes.sql also creates for bgl/openstack -
