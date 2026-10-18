@@ -6,22 +6,12 @@
    the dossier it's describing: a ruled margin down the left like a legal pad, a running file
    header/footer on every page, exhibits instead of cards, a case-stamp instead of a pill tag. */
 :root{
-  --paper:#ECEAE2; --paper-line:#DEDBCF; --surface:#F7F6F0; --ink:#211F1A; --ink-muted:#5E5B4F;
-  --accent:#9C2B20; --accent-ink:#5C1812; --verify:#1F5C4D; --rule:#C9C4B4;
-  --margin:#9C2B20;
+  /* SereneDB's own brand: violet #895AF8 + sky blue #80BEFF, dark terminal-style base
+     (confirmed from serenedb.com's logo markup - not an invented palette) */
+  --paper:#0B0A14; --paper-line:#18152A; --surface:#13111F; --ink:#EAE7F5; --ink-muted:#8E8AA6;
+  --accent:#A77CFA; --accent-ink:#F1E9FF; --verify:#80BEFF; --rule:#2B2745;
+  --margin:#895AF8;
   --disp:'Fraunces',Georgia,serif; --body:'Public Sans',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#17160F; --paper-line:#28261B; --surface:#1E1C14; --ink:#E9E4D6; --ink-muted:#A39F8C;
-    --accent:#E0624F; --accent-ink:#FBD9D2; --verify:#4FAE92; --rule:#38352A; --margin:#E0624F;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#17160F; --paper-line:#28261B; --surface:#1E1C14; --ink:#E9E4D6; --ink-muted:#A39F8C;
-  --accent:#E0624F; --accent-ink:#FBD9D2; --verify:#4FAE92; --rule:#38352A; --margin:#E0624F;
   color-scheme: dark;
 }
 *{box-sizing:border-box}
@@ -54,12 +44,10 @@ p{margin:0}
 .filehead .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted)}
 .stamp{
   display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
-  padding:4px 10px;border:1.5px solid var(--accent);color:var(--accent-ink);background:transparent;
+  padding:4px 10px;border:1.5px solid var(--accent);color:var(--accent);background:transparent;
   text-transform:uppercase;position:relative;
 }
-:root:not([data-theme="light"]) .stamp, :root[data-theme="dark"] .stamp{color:var(--accent)}
 .stamp.verify{border-color:var(--verify);color:var(--verify)}
-:root:not([data-theme="light"]) .stamp.verify, :root[data-theme="dark"] .stamp.verify{color:var(--verify)}
 .exhibit{background:var(--surface);border:1px solid var(--rule);padding:22px;position:relative}
 .exhibit::before{content:attr(data-ex);position:absolute;top:-9px;left:14px;background:var(--paper);padding:0 6px;
   font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-muted)}
