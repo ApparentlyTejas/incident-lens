@@ -22,8 +22,8 @@ from psycopg import sql
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DSN = os.environ.get("SERENEDB_ADMIN_DSN", "host=127.0.0.1 port=7890 user=postgres dbname=postgres")
-TABLE = {"bgl": "bgl_logs", "openstack": "openstack_logs"}
-KEY_COL = {"bgl": "component", "openstack": "service"}
+TABLE = {"bgl": "bgl_logs", "openstack": "openstack_logs", "zookeeper": "zookeeper_logs"}
+KEY_COL = {"bgl": "component", "openstack": "service", "zookeeper": "component"}
 
 def slug(team):
     return re.sub(r"[^a-z0-9]+", "_", team.lower()).strip("_")

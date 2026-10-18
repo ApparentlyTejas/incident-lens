@@ -29,13 +29,13 @@ def main():
     ap.add_argument("--dsn", default=DSN)
     a = ap.parse_args()
     if a.sample:
-        bgl, osp = ROOT/"data/sample/bgl_2k.parquet", ROOT/"data/sample/openstack_2k.parquet"
+        bgl, osp, zkp = ROOT/"data/sample/bgl_2k.parquet", ROOT/"data/sample/openstack_2k.parquet", ROOT/"data/sample/zookeeper_2k.parquet"
     else:
-        bgl, osp = ROOT/"data/processed/bgl.parquet", ROOT/"data/processed/openstack.parquet"
-    for p in (bgl, osp):
+        bgl, osp, zkp = ROOT/"data/processed/bgl.parquet", ROOT/"data/processed/openstack.parquet", ROOT/"data/processed/zookeeper.parquet"
+    for p in (bgl, osp, zkp):
         if not p.exists(): sys.exit(f"missing {p} - run scripts/setup.sh (full) or prep on the samples first")
     conn = psycopg.connect(a.dsn, autocommit=True)
-    subs = {"BGL_PARQUET": str(bgl), "OS_PARQUET": str(osp)}
+    subs = {"BGL_PARQUET": str(bgl), "OS_PARQUET": str(osp), "ZK_PARQUET": str(zkp)}
     # scripts/setup_team_access.py's per-team views depend on bgl_logs/openstack_logs - schema.sql's
     # plain DROP TABLE has no CASCADE, so a reload after provisioning team access used to fail outright
     # ("view ... depends on table ..."). Drop any such views first so a reload is idempotent either way;
@@ -59,10 +59,11 @@ def main():
             if not s or all(l.strip().startswith("--") or not l.strip() for l in s.splitlines()): continue
             conn.execute("\n".join(l for l in s.splitlines() if not l.strip().startswith("--")))
     run_file(conn, "readonly_role.sql", subs)
-    for t_ in ("bgl_logs", "openstack_logs", "ownership"):
+    for t_ in ("bgl_logs", "openstack_logs", "zookeeper_logs", "ownership"):
         print(f"{t_}: {int(conn.execute(f'select count(*) from {t_}').fetchone()[0])} rows")
     unmapped = conn.execute("""select 'bgl', component from bgl_logs where component not in (select component from ownership where dataset='bgl') group by 2
-        union all select 'openstack', service from openstack_logs where service not in (select component from ownership where dataset='openstack') group by 2""").fetchall()
+        union all select 'openstack', service from openstack_logs where service not in (select component from ownership where dataset='openstack') group by 2
+        union all select 'zookeeper', component from zookeeper_logs where component not in (select component from ownership where dataset='zookeeper') group by 2""").fetchall()
     if unmapped: print("WARNING components without an owner (add to sql/ownership.sql):", unmapped)
 
 if __name__ == "__main__":
