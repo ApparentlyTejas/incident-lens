@@ -47,6 +47,8 @@ def test_restricted_role_is_denied_the_base_tables(provisioned):
         conn.execute("SELECT count(*) FROM bgl_logs")
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         conn.execute("SELECT count(*) FROM openstack_logs")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        conn.execute("SELECT count(*) FROM zookeeper_logs")
 
 def test_restricted_role_sees_only_its_own_team_through_the_view(provisioned):
     admin, restricted = admin_conn(), psycopg.connect(role_dsn("_test_team_role", provisioned), autocommit=True)
@@ -106,8 +108,8 @@ def test_setup_script_provisions_every_real_team_and_each_is_actually_isolated()
 
         for dataset, team in teams:
             role, view, password = provisioned[(dataset, team)]
-            key_col = "component" if dataset == "bgl" else "service"
-            table = "bgl_logs" if dataset == "bgl" else "openstack_logs"
+            key_col = mod.KEY_COL[dataset]
+            table = mod.TABLE[dataset]
             expected = admin.execute(
                 f"SELECT count(*) FROM {table} t JOIN ownership o ON o.dataset=%s AND o.component=t.{key_col} WHERE o.team=%s",
                 [dataset, team]).fetchone()[0]

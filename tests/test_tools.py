@@ -205,6 +205,45 @@ def test_generate_report_dedupes_case_insensitively_and_is_case_insensitive_on_i
     assert r["markdown"].count(f"### {a['evidence_id']}") == 1
     assert r["uncited_in_body"] == []
 
+def test_zookeeper_corpus_overview_and_search_match_plain_sql():
+    r = T.corpus_overview("zookeeper")
+    assert r["datasets"]["zookeeper"]["rows"] == gt("select count(*) from zookeeper_logs")
+    assert sum(x["entries"] for x in r["datasets"]["zookeeper"]["by_team"]) == r["datasets"]["zookeeper"]["rows"]
+    s = T.search_logs("zookeeper", "Notification time out", mode="phrase", limit=5)
+    assert s["total_matches"] == gt("select count(*) from zookeeper_logs where message like '%Notification time out%'")
+    assert s["returned"] > 0 and "thread" in s["rows"][0]
+
+def test_zookeeper_filters_reject_node_and_service_like_openstack_rejects_node():
+    # zookeeper has no node/service/alert columns at all - these must error, not silently no-op
+    with pytest.raises(ValueError, match="only exists for dataset bgl"):
+        T.search_logs("zookeeper", "leaving thread", node="main")
+    with pytest.raises(ValueError, match="only exists for dataset openstack"):
+        T.count_by("zookeeper", "component", service="nova-api")
+
+def test_zookeeper_nearby_events_scope_is_thread_based_and_rejects_other_families_scopes():
+    hit = T.search_logs("zookeeper", "leaving thread", mode="phrase", limit=1)["rows"][0]
+    r = T.nearby_events("zookeeper", hit["id"], 3600, 3600)
+    assert any(e["is_anchor"] for e in r["events"]) and all(e["thread"] == hit["thread"] for e in r["events"])
+    with pytest.raises(ValueError, match="not valid for dataset 'zookeeper'"):
+        T.nearby_events("zookeeper", hit["id"], scope="same_request")
+    with pytest.raises(ValueError, match="not valid for dataset 'bgl'"):
+        bgl_hit = T.search_logs("bgl", "parity error", mode="phrase", limit=1)["rows"][0]
+        T.nearby_events("bgl", bgl_hit["id"], scope="same_thread")
+
+def test_zookeeper_episodes_and_concentration_use_thread_as_partition():
+    r = T.episodes("zookeeper", gap_seconds=300)
+    assert r["partition_by"] == "thread" and 0 < r["episodes"] <= r["entries"]
+    conc = T.concentration_anomalies("zookeeper", min_entries=5, limit=5)
+    assert conc["partition_by"] == "thread"
+    if conc["rows"]:
+        top = conc["rows"][0]
+        assert top["entries"] == gt("select count(*) from zookeeper_logs where template = %s", [top["template"]])
+
+def test_zookeeper_team_ownership_covers_every_real_component():
+    unmapped = gt("""select count(*) from zookeeper_logs where component not in
+                      (select component from ownership where dataset='zookeeper')""")
+    assert unmapped == 0
+
 def test_database_user_is_read_only():
     with pytest.raises(Exception): db.run("delete from bgl_logs")
 
