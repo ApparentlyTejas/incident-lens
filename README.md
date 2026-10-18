@@ -1,6 +1,6 @@
 # Incident Lens
 
-**An MCP server that gives Claude role-aware, evidence-backed tools over the BGL and OpenStack logs in SereneDB.**
+**An MCP server that gives Claude role-aware, evidence-backed tools over the BGL, OpenStack and Zookeeper logs in SereneDB.**
 The database searches and calculates; Claude explains; every number traces to a query that actually ran.
 
 > *One corpus, three roles, three kinds of evidence, and a ledger that proves every claim.*
@@ -30,10 +30,10 @@ flowchart LR
 Requires Python 3.10+, `curl`, `unzip`. The script starts SereneDB itself either way: natively on Linux x86_64, or via the official Docker image everywhere else (macOS, Windows, Linux ARM) - just have Docker installed and running. If neither is available, install SereneDB from <https://serenedb.com/download> and start it on `127.0.0.1:7890` first.
 
 ```bash
-git clone <this repo> && cd incident-lens
+git clone https://github.com/ApparentlyTejas/incident-lens.git && cd incident-lens
 ./scripts/setup.sh --sample      # seconds: 2,000-line Loghub samples, good for trying everything
-./scripts/setup.sh               # full corpus: downloads BGL (709 MB) + OpenStack (58 MB) from Zenodo, parses, loads, indexes
-pytest -q --asyncio-mode=auto tests    # needs the --sample load (39 tests, numbers checked against plain SQL)
+./scripts/setup.sh               # full corpus: downloads BGL (709 MB) + OpenStack (58 MB) + Zookeeper (10 MB) from Zenodo, parses, loads, indexes
+pytest -q --asyncio-mode=auto tests    # needs the --sample load (44 tests, numbers checked against plain SQL)
 python tests/stdio_smoke.py            # spawns the server like Claude does and calls a tool
 ```
 
@@ -96,10 +96,10 @@ Full generated reference with every input and description: [`docs/TOOLS.md`](doc
 
 | Tool | Roles | Returns |
 |---|---|---|
-| `corpus_overview` | all | exact whole-corpus counts: rows, span, by level / component / team (+ BGL alert categories, OpenStack anomaly labels) |
+| `corpus_overview` | all | exact whole-corpus counts: rows, span, by level / component / team (+ BGL alert categories, OpenStack anomaly labels, Zookeeper distinct threads) |
 | `search_logs` | engineer | ≤`limit` highlighted rows (a sample) + `total_matches`, first/last seen, top nodes, by-level over **all** matches; modes terms / phrase / any / fuzzy |
-| `nearby_events` | engineer | events around one entry (same node / same request), anchor flagged, truncated flag |
-| `count_by` | lead, manager | exact counts by team / component / level / node / alert / template / service / status |
+| `nearby_events` | engineer | events around one entry (same node / same request / same thread), anchor flagged, truncated flag |
+| `count_by` | lead, manager | exact counts by team / component / level / node / alert / template / service / status / thread |
 | `trend` | lead, manager | counts per hour/day/week, `partial_bucket` flags, growth vs the preceding period of equal length |
 | `episodes` | all | entries vs episodes, largest episodes, the gap rule used |
 | `recurring_patterns` | lead, manager | top message templates with counts, spread, first/last seen, new-vs-recurring |
@@ -114,17 +114,17 @@ Every result uses one envelope: `evidence_id`, `scope` (dataset, absolute period
 
 ## Data, schema, ownership
 
-Datasets: **BGL** (Blue Gene/L RAS logs, 4.7M lines, 214 days) and **OpenStack** (207,820 nova lines, request ids, inline latency). Tables `bgl_logs`, `openstack_logs`, `ownership`; inverted indexes `bgl_idx`, `os_idx` over message text with a lower-case, non-stemming dictionary (identifiers and error codes stay intact). The index also carries `ts`, level, component, node/service so filters run inside the scan.
+Datasets: **BGL** (Blue Gene/L RAS logs, 4.7M lines, 214 days), **OpenStack** (207,820 nova lines, request ids, inline latency), and **Zookeeper** (74,380 lines from one real ensemble member, 100% parsed, thread-level quorum/leader-election activity). Tables `bgl_logs`, `openstack_logs`, `zookeeper_logs`, `ownership`; inverted indexes `bgl_idx`, `os_idx`, `zk_idx` over message text with a lower-case, non-stemming dictionary (identifiers and error codes stay intact). The index also carries `ts`, level, component, node/service/thread so filters run inside the scan.
 
 The `template` column is derived by `prep/templating.py` (numbers, ids, hosts → `<*>`); it approximates message types and is **not** Loghub's labelled templates.
 
-**Ownership table is fictional**, invented for this challenge (`sql/ownership.sql`): BGL by `component` - KERNEL → Kernel & Runtime; APP → Application Support; HARDWARE → Hardware Reliability; LINKCARD, SERV_NET → Interconnect & Network; MMCS, CMCS, BGLMASTER, DISCOVERY → Control Plane; MONITOR, DIAGS → Monitoring & Diagnostics. OpenStack by `service` - nova-api → API Platform; nova-compute → Compute; nova-scheduler → Scheduling. `load.py` warns about any component without an owner.
+**Ownership table is fictional**, invented for this challenge (`sql/ownership.sql`): BGL by `component` - KERNEL → Kernel & Runtime; APP → Application Support; HARDWARE → Hardware Reliability; LINKCARD, SERV_NET → Interconnect & Network; MMCS, CMCS, BGLMASTER, DISCOVERY → Control Plane; MONITOR, DIAGS → Monitoring & Diagnostics. OpenStack by `service` - nova-api → API Platform; nova-compute → Compute; nova-scheduler → Scheduling. Zookeeper by `component` (the Java class that logged the line) - quorum/membership classes → Consensus & Membership; leader/follower/learner classes → Leader Election; client-facing I/O classes → Client Connections; request-pipeline classes → Request Processing; transaction-log/snapshot classes → Storage & Persistence; startup classes → Startup & Config. `load.py` warns about any component without an owner.
 
 ## Per-team database access (row-level security)
 
 `python scripts/setup_team_access.py` provisions one DB role + one filtered view per team straight from the `ownership` table - a team's own connection can see **only** its own component's/service's rows, enforced by SereneDB's grant system, not application code. SereneDB does not implement Postgres's native `ROW LEVEL SECURITY` / `CREATE POLICY` (checked directly - both fail with "Pragma Function ... does not exist"), so this reaches the same real guarantee with primitives it does support: a per-team `CREATE VIEW` pre-filtered by `ownership`, a role with its base-table grants revoked, `SELECT` granted only on that one view. `--drop` removes everything it created.
 
-This isn't just provisioned and assumed to work - `tests/test_team_access.py` connects **as** each of the 9 real team roles (never as admin) and proves: the base tables and the `ownership` table itself are both denied (`InsufficientPrivilege`), the team's own view returns the exact row count a plain SQL query against `ownership` says it should, and every row's `component`/`service` belongs to that team and no other.
+This isn't just provisioned and assumed to work - `tests/test_team_access.py` connects **as** each of the 15 real team roles (never as admin) and proves: the base tables and the `ownership` table itself are both denied (`InsufficientPrivilege`), the team's own view returns the exact row count a plain SQL query against `ownership` says it should, and every row's `component`/`service` belongs to that team and no other.
 
 ## Huge dataset scale demonstration (bonus)
 
@@ -153,7 +153,7 @@ What has been executed, on the **full real corpus** (SereneDB 26.10.1; macOS arm
 
 | Check | Status |
 |---|---|
-| Full load: 4,747,945 BGL rows + 207,812 OpenStack rows from the real Zenodo archives, parsed, loaded, indexed | **executed** - tables loaded in 3.6-9.2 s, inverted indexes built + refreshed in 5.9-9.6 s across repeated runs |
+| Full load: 4,747,945 BGL rows + 207,812 OpenStack rows + 74,380 Zookeeper rows from the real Zenodo archives, parsed, loaded, indexed | **executed** - tables loaded in 3.6-9.2 s, inverted indexes built + refreshed in 5.9-9.6 s across repeated runs |
 | Schema, inverted index, phrase/terms/any/fuzzy search, BM25 + highlight, window functions, percentiles, `date_trunc`, read-only role | executed, working, at full scale |
 | All 13 tools + all 3 MCP resources (`schema://`, `ownership://`, `evidence://{id}`), 39 pytest tests against plain-SQL ground truth, real stdio MCP round-trip | executed, passing (against both the 2k samples and the full corpus) |
 | **Clean checkout**, exactly as a judge would run it | **executed**: a copy of the exact current working tree, in a genuinely fresh Python venv - `pip install -r requirements.txt`, cold-parsing the sample logs from scratch, `scripts/load.py --sample`, the full pytest suite, `tests/stdio_smoke.py` - all passed with zero manual intervention. This is also what caught a real test-design flaw: one new test asserted a property that only holds on the full corpus, now fixed to skip (not silently pass) on small data |
@@ -161,13 +161,25 @@ What has been executed, on the **full real corpus** (SereneDB 26.10.1; macOS arm
 | Worked investigations: BGL recurring failure (`investigation/worked_investigation.md`), OpenStack (`investigation/openstack_investigation.md`), and BGL concentration (`investigation/concentration_investigation.md`) | **all three executed against the full corpus** - BGL recurring: a ciod job-launch failure pattern (1,024 nodes, 52,763 episodes); OpenStack: a nova-compute image-cache bug (8 occurrences, 8 separate episodes, 8 different VM instances - a deliberately different shape); BGL concentration: `concentration_anomalies` surfacing a single-node hardware signal ranked 33rd by raw frequency - including an honest false start where the *top*-ranked result turned out to be a missing-node-attribution artifact, not a real finding, and saying so rather than reporting it anyway. All three walk all three roles with real evidence ids; all three checked clean with `eval/verify_answer.py` |
 | Web console (`ui/`) - every endpoint except the live Claude call | **executed**: overview/ledger-status/tamper-demo/evidence-replay all hit over real HTTP; path-traversal attempt on `/static` confirmed blocked; survived a live `docker restart` of SereneDB mid-session with no process restart (the `server/db.py` reconnect fix, proven through the HTTP layer, not just the Python API) |
 | `ui/server.py`'s Claude tool-calling loop (`run_conversation`) | **executed with 8 tests** (`tests/test_ui_server.py`) that fake only the Anthropic network response (shaped exactly like the real SDK's content blocks) and run everything else for real - the actual role prompts, the actual tool list, `mcp.call_tool` against the actual SereneDB corpus, and a real ledger write with a real evidence id. Covers: direct answer, multi-step tool use, `generate_report` called mid-conversation, a tool error surfacing as a readable message instead of a crash, the step-limit cutoff, multi-turn history actually reaching the model, and malformed history failing cleanly |
-| `eval/run.py` golden-set runner, `cli/ask.py` / `ui/server.py`'s actual network call to the Anthropic API | built and tested as above; **the real HTTPS call to Anthropic itself was never made** (no `ANTHROPIC_API_KEY` in this environment) - `cli/ask.py --dry-run` and the faked-client tests cover everything up to and after that call; run a real question through either one yourself before the demo as the one remaining smoke test |
+| `eval/run.py` golden-set runner, `cli/ask.py` / `ui/server.py`'s actual network call to the Anthropic API | **executed**: a real `ANTHROPIC_API_KEY`, a real question, a real multi-step tool-calling run through the web console - that's the live run in the submitted demo video, not just the faked-client tests and `cli/ask.py --dry-run` that cover everything up to and after that call |
 | Connection resilience: `server/db.py` surviving a SereneDB outage mid-session | **executed twice**, once via a deliberate `docker restart serenedb` and once via a real crash (below) - a long-lived process self-heals its connection on the next query with no restart, confirmed through the Python API and through the UI's HTTP layer |
 | Concurrency: many simultaneous requests against the shared DB connection and the SQLite ledger | **executed** - real OS threads hitting different tool calls concurrently, and 18 concurrent real HTTP requests across `/api/overview` + `/api/ledger/tamper-demo` + `/api/ask`, all returned correctly (psycopg3 connections are internally thread-safe; the tamper-demo's file snapshot now takes the same lock `ledger.record()` uses, and runs off the event loop via `asyncio.to_thread` so it can't stall other requests while holding it) |
 
 **Engineering rigor:** this project was tested against the full real corpus at every stage, not just the 2k-line dev samples - that discipline is what surfaced and fixed over a dozen real issues (mismatched id joins, a vacuously-true flag, a 9x query-planner slowdown, unhandled exceptions surfacing as raw tracebacks, a path-traversal hole, a race condition) across the parsers, the tools, the eval harness and the web console, every one with a regression test. The one failure mode outside this project's control - the vendored SereneDB engine itself restarting under load, not this project's code - is handled: the connection layer self-heals automatically on the next query with no process restart needed, verified through both a deliberate and a real engine restart. Full write-up, fix-by-fix: [`docs/HARDENING.md`](docs/HARDENING.md).
 
 Other limitations: episodes are a counting convention (gap default 300 s, per node/service); OpenStack latency exists only on nova-api request lines; the logs do not establish root cause, downtime or customer impact; priority scores rank observed frequency and spread only.
+
+## How this meets the brief
+
+| Criterion | Where to look |
+|---|---|
+| Role-appropriate insight (30%) | `server/prompts.py` - three distinct playbooks (`engineer_investigation`, `lead_review`, `manager_priorities`), each picking different tools and evidence, not just a different answer length. Real, full-corpus walkthroughs for all three roles on three separate findings: [`investigation/worked_investigation.md`](investigation/worked_investigation.md) (BGL recurring failure), [`investigation/openstack_investigation.md`](investigation/openstack_investigation.md), [`investigation/concentration_investigation.md`](investigation/concentration_investigation.md). |
+| Search and analytics together (25%) | `search_logs`/`nearby_events` hit SereneDB's inverted index (BM25, phrase/terms/any/fuzzy, highlighted snippets); `count_by`/`trend`/`episodes`/`recurring_patterns`/`concentration_anomalies` aggregate the whole stated scope in the database, never a sample. Every result reports its true `total_matches`/`groups_total` and a `truncated` flag, and carries the exact SQL that ran - see any entry in the evidence ledger (`get_evidence`) or [`eval/benchmark_results.md`](eval/benchmark_results.md) for real timings against the full 4.7M+207K-row corpus. |
+| Recommendation quality (25%) | The four-block answer contract (Observed / Hypotheses / Recommended checks / Unknown), enforced by every role prompt and checked mechanically by [`eval/verify_answer.py`](eval/verify_answer.py) - it confirms every cited `[E-id]` exists and that every number next to one actually appears in that ledger entry, and flags uncited numbers. Facts and guesses are never mixed: see the worked investigations above. |
+| Execution (20%) | `./scripts/setup.sh` (sample or full corpus) and `pytest`, run clean: see the "Clean checkout" row in [Status and known limitations](#status-and-known-limitations-read-this). Novelty: a tamper-evident, hash-chained evidence ledger (`verify_ledger_integrity`, demoed live in the web console's "Simulate Tamper" button) and `concentration_anomalies`, a ranking that surfaces findings raw frequency buries. Presentation: the web console (`ui/`) streams every tool call and its SQL live next to the answer. |
+| Best MCP Server (special award) | 13 tools + 3 role prompts, each description written as a spec with inputs, return shape and an explicit "DO NOT use for" - full reference in [`docs/TOOLS.md`](docs/TOOLS.md) (generated from the live server, not hand-maintained). Hard row/char caps on every tool, a read-only DB role, parameterised SQL only, a 30s statement timeout, and bad input returned to Claude as a specific, actionable `ToolError` rather than a bare failure. `tests/stdio_smoke.py` proves a real client can connect over stdio and call a tool, exactly as the setup instructions describe. |
+| Working with Huge Datasets (special award) | [`docs/HUGE_DATASET.md`](docs/HUGE_DATASET.md): an 8M-row real Thunderbird load (same Loghub HPC family as BGL) with an honestly disclosed memory ceiling, and 1 billion rows of real OpenTelemetry logs queried live off public S3 Parquet with zero download - real query times (305ms count, ~4s group-by), scales to the full 50B-row listed set by adding file URLs. Isolated from the main tools so it can't affect the core demo either way. |
+| Other bonus: row-level security | [Per-team database access](#per-team-database-access-row-level-security) - per-team roles + filtered views (SereneDB has no native `CREATE POLICY`), verified by connecting **as** each of the 15 real restricted teams, not as admin: `tests/test_team_access.py`. |
 
 ## Citations
 

@@ -2,14 +2,14 @@
 
 ## `corpus_overview`
 
-Whole-corpus summary: exact row counts, time span, counts by level, component/service and mapped team (plus BGL alert categories / OpenStack labelled anomalies).
+Whole-corpus summary: exact row counts, time span, counts by level, component/service and mapped team (plus BGL alert categories / OpenStack labelled anomalies / Zookeeper distinct threads).
 USE FIRST to learn the data scope, available levels and components, and for 'across everything' or 'by dataset and team' questions (manager, lead).
-Inputs: dataset (optional; omit for both). Returns: exact counts over every row, no sampling.
+Inputs: dataset (optional; omit for all three). Returns: exact counts over every row, no sampling.
 DO NOT use for finding specific messages (use search_logs) or time-bounded counts (use count_by).
 
 **Inputs**
 
-- `dataset`: any. Omit for both datasets.
+- `dataset`: any. Omit for all datasets.
 
 ## `search_logs`
 
@@ -21,13 +21,13 @@ DO NOT use for grouped counts or trends over many entries (count_by, trend), and
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
 - `query` (required): string. Words or phrase to find in the log message, e.g. 'parity error' or 'ciod: Error'.
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL; zookeeper: ERROR). Ignored if `levels` is set.
 - `component`: any. Exact component, e.g. KERNEL.
 - `node`: any. bgl only: exact node id.
 - `service`: any. openstack only: nova-api | nova-compute | nova-scheduler.
@@ -39,13 +39,13 @@ DO NOT use for grouped counts or trends over many entries (count_by, trend), and
 
 Events around one log entry: what happened just before and after. ENGINEER, after search_logs.
 Inputs: dataset, log_id (the `id` from a search hit), before_seconds / after_seconds (default 60/60, max 86400), scope, limit (default 40, max 100).
-Scope: bgl auto/same_node = same node only; any_node = every node in the window - same_request/same_service/any are OpenStack-only and error on bgl. openstack auto = same request_id if the entry has one, else same service; also same_service | any - same_request errors if the anchor entry has no request_id.
+Scope: bgl auto/same_node = same node only; any_node = every node in the window. zookeeper auto/same_thread = same thread only; any_thread = every thread in the window. openstack auto = same request_id if the entry has one, else same service; also same_service | any - same_request errors if the anchor entry has no request_id. A scope from one dataset family errors on the others.
 Returns: the anchor entry, events ordered by time (anchor flagged), total events in the window and truncated flag (if truncated the events closest in time are kept).
 Events are context, not proof of causation. DO NOT use to count occurrences.
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
 - `log_id` (required): integer. `id` of the anchor entry from search_logs rows.
 - `before_seconds`: integer. 
 - `after_seconds`: integer. 
@@ -56,20 +56,20 @@ Events are context, not proof of causation. DO NOT use to count occurrences.
 
 Exact counts grouped by component, team, level, node/service, alert, template etc. over the WHOLE stated scope (aggregated in the database, never a sample). TEAM LEAD and MANAGER: 'which components/teams have the most problems'.
 Inputs: dataset, group_by, optional from_ts/to_ts, optional text query (+mode), levels or severity, component, node, service, alert, limit (default 25).
-group_by: team (via the FICTIONAL ownership table), component, level, node, alert, template, type (bgl); service, component, level, http_status, http_method, template, team (openstack).
+group_by: team (via the FICTIONAL ownership table), component, level, node, alert, template, type (bgl); service, component, level, http_status, http_method, template, team (openstack); team, component, level, thread, template (zookeeper).
 Returns: rows of name/entries/share_pct, total_matches, groups_total, truncated. Counts are log ENTRIES, not incidents - pair with `episodes` for occurrence claims.
 DO NOT use to read message text (search_logs) or to see change over time (trend). For group_by=template specifically, prefer `recurring_patterns` instead - it adds spread, first/last seen, and new-vs-recurring on top of the same counts.
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
-- `group_by` (required): string. team | component | level | node | alert | template | type (bgl); team | service | component | level | http_status | http_method | template (openstack).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
+- `group_by` (required): string. team | component | level | node | alert | template | type (bgl); team | service | component | level | http_status | http_method | template (openstack); team | component | level | thread | template (zookeeper).
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `query`: any. Optional text filter on the message.
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL; zookeeper: ERROR). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -85,14 +85,14 @@ DO NOT use for message text or for one-off totals (count_by).
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
 - `bucket`: one of hour/day/week. 
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `query`: any. 
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL; zookeeper: ERROR). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -102,20 +102,20 @@ DO NOT use for message text or for one-off totals (count_by).
 
 ## `episodes`
 
-Entries vs episodes: collapses bursts of matching entries on the same node (bgl) or service (openstack) when consecutive entries are within gap_seconds (default 300). ALL ROLES, whenever an answer talks about how many TIMES something happened.
+Entries vs episodes: collapses bursts of matching entries on the same node (bgl), service (openstack) or thread (zookeeper) when consecutive entries are within gap_seconds (default 300). ALL ROLES, whenever an answer talks about how many TIMES something happened.
 Inputs: dataset, optional from_ts/to_ts, optional text query (+mode), levels/severity, component, node, service, alert, gap_seconds (default 300), top (default 10).
 Returns: entries, episodes, largest_episode_entries, the top episodes (start, end, entries, duration), and the gap rule used. An episode is a counting convention, not a real incident.
 Always report BOTH numbers and the gap rule. DO NOT use for message text or grouped team counts.
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `query`: any. 
 - `mode`: one of terms/phrase/any/fuzzy. terms: all words must appear (default). phrase: exact adjacent phrase. any: at least one word. fuzzy: tolerate typos (Levenshtein).
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL; zookeeper: ERROR). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -132,11 +132,11 @@ DO NOT use to read individual events (search_logs). Ranks by raw frequency only 
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL; zookeeper: ERROR). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
@@ -152,11 +152,11 @@ DO NOT use for a plain most-frequent ranking (recurring_patterns) or to read ind
 
 **Inputs**
 
-- `dataset` (required): one of bgl/openstack. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency).
+- `dataset` (required): one of bgl/openstack/zookeeper. bgl = Blue Gene/L supercomputer logs (Jun 2005-Jan 2006, nodes, RAS severity levels, labelled alerts). openstack = nova-api/compute/scheduler logs (request ids, latency). zookeeper = one ensemble member's log (threads, leader-election/quorum activity).
 - `from_ts`: any. Period start, inclusive, ISO like '2005-06-03' or '2005-06-03 15:00:00'. Omit for the dataset's first log. Always an absolute date; the logs are historical.
 - `to_ts`: any. Period end, EXCLUSIVE, ISO date/time. Omit for the dataset's last log.
 - `levels`: any. Exact log levels to keep, e.g. ['FATAL','ERROR']. Overrides `severity`. Call corpus_overview to see the levels present.
-- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL). Ignored if `levels` is set.
+- `severity`: one of all/severe. 'severe' keeps the dataset's severe levels (bgl: FATAL, FAILURE, SEVERE, ERROR; openstack: ERROR, CRITICAL; zookeeper: ERROR). Ignored if `levels` is set.
 - `component`: any. 
 - `node`: any. 
 - `service`: any. 
