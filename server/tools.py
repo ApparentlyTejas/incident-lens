@@ -30,9 +30,11 @@ def corpus_overview(dataset=None):
             d["distinct_nodes"] = tr.scalar("SELECT count(DISTINCT node) FROM bgl_logs")
             d["labelled_alert_entries"] = tr.scalar("SELECT count(*) FROM bgl_logs WHERE alert IS NOT NULL")
             d["by_alert_category"] = tr.run("SELECT alert, count(*) AS entries FROM bgl_logs WHERE alert IS NOT NULL GROUP BY 1 ORDER BY 2 DESC")[1]
-        else:
+        elif ds == "openstack":
             d["labelled_anomalous_entries"] = tr.scalar("SELECT count(*) FROM openstack_logs WHERE anomalous")
             d["distinct_request_ids"] = tr.scalar("SELECT count(DISTINCT request_id) FROM openstack_logs")
+        else:
+            d["distinct_threads"] = tr.scalar("SELECT count(DISTINCT thread) FROM zookeeper_logs")
         out[ds] = d
     return finish("corpus_overview", {"dataset": dataset}, tr, ",".join(names), None, None, {},
                   datasets=out, total_matches=sum(v["rows"] for v in out.values()), returned=len(out), truncated=False,
@@ -55,7 +57,7 @@ def search_logs(dataset, query, mode="terms", from_ts=None, to_ts=None, levels=N
                  levels=levels, severity=severity, component=component, node=node, service=service,
                  include_ts=not ts_redundant)
     total = tr.scalar(f"SELECT count(*) FROM {idx} WHERE {w}", p)
-    cols = "id, ts, node, component, level, alert" if ds == "bgl" else "id, ts, service, component, level, request_id, http_status"
+    cols = cfg["select_cols"]
     use_rank = order == "relevance" and mode != "fuzzy"
     snippet = "ts_highlight(message)" if mode != "fuzzy" else "message"
     ob = "BM25(%s.tableoid) DESC, ts, id" % idx if use_rank else "ts, id"
@@ -82,13 +84,14 @@ def search_logs(dataset, query, mode="terms", from_ts=None, to_ts=None, levels=N
 # ---------------------------------------------------------------- nearby_events
 _BGL_SCOPES = {"auto", "same_node", "any_node"}
 _OS_SCOPES = {"auto", "same_request", "same_service", "any"}
+_ZK_SCOPES = {"auto", "same_thread", "any_thread"}
 
 def nearby_events(dataset, log_id, before_seconds=60, after_seconds=60, scope="auto", limit=40):
     args = dict(locals())
     ds, cfg = dataset_cfg(dataset); limit = clamp_limit(limit); tr = Tracer(); tbl = cfg["table"]
     # a scope that doesn't apply to this dataset is a real mistake (e.g. 'same_request' on bgl) -
     # silently substituting a different scope would hide that mistake instead of surfacing it
-    valid = _BGL_SCOPES if ds == "bgl" else _OS_SCOPES
+    valid = _BGL_SCOPES if ds == "bgl" else (_ZK_SCOPES if ds == "zookeeper" else _OS_SCOPES)
     if scope not in valid: raise ValueError(f"scope {scope!r} is not valid for dataset {ds!r}; use one of {sorted(valid)}")
     before_seconds, after_seconds = max(0, min(int(before_seconds), 86400)), max(0, min(int(after_seconds), 86400))
     _, a = tr.run(f"SELECT * FROM {tbl} WHERE id = %s", [int(log_id)])
@@ -99,6 +102,9 @@ def nearby_events(dataset, log_id, before_seconds=60, after_seconds=60, scope="a
     if ds == "bgl":
         used = "same_node" if scope == "auto" else scope
         if used == "same_node": conds.append("node = %s"); params.append(a["node"])
+    elif ds == "zookeeper":
+        used = "same_thread" if scope == "auto" else scope
+        if used == "same_thread": conds.append("thread = %s"); params.append(a["thread"])
     else:
         if scope == "same_request" and not a.get("request_id"):
             raise ValueError(f"log entry {log_id} has no request_id; scope='same_request' doesn't apply - try 'same_service' or 'auto'")
@@ -107,7 +113,7 @@ def nearby_events(dataset, log_id, before_seconds=60, after_seconds=60, scope="a
         elif used == "same_service": conds.append("service = %s"); params.append(a["service"])
     w = " AND ".join(conds)
     total = tr.scalar(f"SELECT count(*) FROM {tbl} WHERE {w}", params)
-    cols = "id, ts, node, component, level, alert" if ds == "bgl" else "id, ts, service, component, level, request_id, http_status, latency_s"
+    cols = cfg["select_cols"] + (", latency_s" if ds == "openstack" else "")
     _, rows = tr.run(f"SELECT * FROM (SELECT {cols}, message, abs(epoch(ts) - epoch(%s::TIMESTAMP)) AS dist FROM {tbl} WHERE {w} ORDER BY dist, id LIMIT {limit}) x ORDER BY ts, id",
                      [t0] + params)
     for r in rows: r["is_anchor"] = r["id"] == int(log_id); r.pop("dist", None)
