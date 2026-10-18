@@ -17,3 +17,6 @@ eval/ground_truth.json
 eval/results.md
 
 .DS_Store
+
+# local demo recording footage (not part of the submission repo)
+demo-recording/
