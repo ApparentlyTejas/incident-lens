@@ -4,6 +4,12 @@
 #   default  : download BGL (709 MB zip) + OpenStack (58 MB), parse, load the FULL corpus
 set -euo pipefail
 cd "$(dirname "$0")/.."
+PYVER=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+  echo "Incident Lens needs Python 3.10+ (the mcp package requires it) - found $PYVER."
+  echo "On macOS the default 'python3' is often an older system install; try 'python3.11 scripts/setup.sh' or install a newer Python (e.g. via https://www.python.org/downloads/ or 'brew install python@3.12') and re-run with that interpreter."
+  exit 1
+fi
 python3 -m pip install -q -r requirements.txt || python3 -m pip install -q --break-system-packages -r requirements.txt
 ./scripts/start_serenedb.sh
 mkdir -p data/raw data/processed data/sample
