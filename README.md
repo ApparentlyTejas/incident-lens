@@ -61,6 +61,35 @@ Then start with a role prompt (`engineer_investigation`, `lead_review`, `manager
 
 `export ANTHROPIC_API_KEY=... && python ui/server.py` then open <http://127.0.0.1:8787>. Same role prompts and the same 13 tools as Claude Code/Desktop, called through the Anthropic API like `cli/ask.py` - this is a UI layer, not a second implementation. Pick a role and a dataset (BGL or OpenStack) and chat on the left; every tool call Claude makes lands on the right as it happens, with its evidence_id, the exact SQL that ran, and its position in the hash-chained ledger. Follow-up questions keep real conversation context (client-accumulated, server-validated), and switching role or dataset starts a fresh conversation rather than quietly reusing the old one's context. A "Simulate Tamper" button clones the ledger, hand-edits one stored number, and shows `verify_ledger_integrity` catch it - on a scratch copy, so it never touches the real ledger. Without a key, the chat panel reports that clearly; the overview and ledger panels (`/api/overview`, `/api/ledger/status`) work regardless, since they only talk to SereneDB and the ledger.
 
+![Engineer role answering a real question against the full BGL corpus, with the evidence ledger filling in live on the right](docs/images/console.png)
+
+Every number in that screenshot is real: 4,747,945 BGL rows, the actual `search_logs`/`nearby_events` evidence ids (`E-2424`, `E-2425`), their real hashes, chained to the entry before them.
+
+<details>
+<summary>Tamper detection, live</summary>
+
+![The "Simulate Tamper" modal showing a hand-edited entry caught by verify_ledger_integrity, with the real ledger confirmed untouched](docs/images/tamper-demo.png)
+
+</details>
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Claude
+    participant S as Incident Lens (MCP server)
+    participant D as SereneDB
+    participant L as Evidence ledger
+
+    U->>C: "Find 'parity error' in BGL..."
+    C->>S: search_logs(dataset=bgl, query=...)
+    S->>D: parameterised SQL (read-only role)
+    D-->>S: rows + total_matches
+    S->>L: record SQL, scope, counts, hash
+    L-->>S: evidence_id (e.g. E-2424)
+    S-->>C: result + evidence_id
+    C->>U: Observed / Hypotheses / Checks / Unknown, citing [E-2424]
+```
+
 ## Tools
 
 Full generated reference with every input and description: [`docs/TOOLS.md`](docs/TOOLS.md).
@@ -122,7 +151,7 @@ What has been executed, on the **full real corpus** (SereneDB 26.10.1; macOS arm
 | Per-team database access (`scripts/setup_team_access.py`) | **executed**: provisioned real roles for all 9 real teams against the full corpus, connected as each one (not as admin), confirmed base-table and `ownership`-table denial plus exact row-level isolation for every single team - `tests/test_team_access.py` |
 | Worked investigations: BGL (`investigation/worked_investigation.md`) and OpenStack (`investigation/openstack_investigation.md`) | **both executed against the full corpus** - BGL: a recurring ciod job-launch failure pattern (1,024 nodes, 52,763 episodes); OpenStack: a nova-compute image-cache bug (8 occurrences, 8 separate episodes, 8 different VM instances - a deliberately different shape, to show the same methodology holds on both datasets). Both walk all three roles with real evidence ids; both checked clean with `eval/verify_answer.py` |
 | Web console (`ui/`) - every endpoint except the live Claude call | **executed**: overview/ledger-status/tamper-demo/evidence-replay all hit over real HTTP; path-traversal attempt on `/static` confirmed blocked; survived a live `docker restart` of SereneDB mid-session with no process restart (the `server/db.py` reconnect fix, proven through the HTTP layer, not just the Python API) |
-| `ui/server.py`'s Claude tool-calling loop (`run_conversation`) | **executed with 6 tests** (`tests/test_ui_server.py`) that fake only the Anthropic network response (shaped exactly like the real SDK's content blocks) and run everything else for real - the actual role prompts, the actual tool list, `mcp.call_tool` against the actual SereneDB corpus, and a real ledger write with a real evidence id. Covers: direct answer, multi-step tool use, `generate_report` called mid-conversation, a tool error surfacing as a readable message instead of a crash, and the step-limit cutoff |
+| `ui/server.py`'s Claude tool-calling loop (`run_conversation`) | **executed with 8 tests** (`tests/test_ui_server.py`) that fake only the Anthropic network response (shaped exactly like the real SDK's content blocks) and run everything else for real - the actual role prompts, the actual tool list, `mcp.call_tool` against the actual SereneDB corpus, and a real ledger write with a real evidence id. Covers: direct answer, multi-step tool use, `generate_report` called mid-conversation, a tool error surfacing as a readable message instead of a crash, the step-limit cutoff, multi-turn history actually reaching the model, and malformed history failing cleanly |
 | `eval/run.py` golden-set runner, `cli/ask.py` / `ui/server.py`'s actual network call to the Anthropic API | built and tested as above; **the real HTTPS call to Anthropic itself was never made** (no `ANTHROPIC_API_KEY` in this environment) - `cli/ask.py --dry-run` and the faked-client tests cover everything up to and after that call; run a real question through either one yourself before the demo as the one remaining smoke test |
 | Connection resilience: `server/db.py` surviving a SereneDB outage mid-session | **executed twice**, once via a deliberate `docker restart serenedb` and once via a real crash (below) - a long-lived process self-heals its connection on the next query with no restart, confirmed through the Python API and through the UI's HTTP layer |
 | Concurrency: many simultaneous requests against the shared DB connection and the SQLite ledger | **executed** - real OS threads hitting different tool calls concurrently, and 18 concurrent real HTTP requests across `/api/overview` + `/api/ledger/tamper-demo` + `/api/ask`, all returned correctly (psycopg3 connections are internally thread-safe; the tamper-demo's file snapshot now takes the same lock `ledger.record()` uses, and runs off the event loop via `asyncio.to_thread` so it can't stall other requests while holding it) |
