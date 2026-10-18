@@ -9,7 +9,9 @@ docstring for why that isolation is deliberate.
 
 [Thunderbird](https://zenodo.org/records/8196385) (Loghub / Sandia National Labs) - the same HPC
 supercomputer-log family as BGL, but a different, syslog-style line format with no explicit level
-field. Full source file: **211,212,192 lines, 31.8 GB** raw text.
+field. Per the challenge brief's own dataset table: **211,212,192 lines, 29.60 GB compressed,
+244 days** of coverage - the largest option listed alongside Windows (114.6M lines). The raw
+extracted text file measures 31.8 GB on disk; the archive itself is the 29.60 GB figure.
 
 Parsed with [`prep/parse_thunderbird.py`](../prep/parse_thunderbird.py):
 
