@@ -57,6 +57,34 @@ def test_restricted_role_sees_only_its_own_team_through_the_view(provisioned):
     components = restricted.execute("SELECT DISTINCT component FROM _test_team_view").fetchall()
     assert components == [("APP",)]   # never any other team's component, not even one stray row
 
+def test_team_view_cleanup_query_finds_and_unblocks_a_dependent_view():
+    """sql/schema.sql's DROP TABLE has no CASCADE, and a real team_view_* view depends directly
+    on bgl_logs/openstack_logs - so without scripts/load.py's view-cleanup step, reloading data
+    after provisioning team access fails outright with "view ... depends on table ...". Proven
+    and fixed against a disposable table/view (never the real bgl_logs) so this is safe to run
+    against a live, shared database - only load.py's exact cleanup query and DROP VIEW statement
+    are exercised, nothing here touches real data."""
+    admin = admin_conn()
+    admin.execute("DROP VIEW IF EXISTS team_view__hazard_test")
+    admin.execute("DROP TABLE IF EXISTS _hazard_test_table")
+    try:
+        admin.execute("CREATE TABLE _hazard_test_table (x INT)")
+        admin.execute("CREATE VIEW team_view__hazard_test AS SELECT * FROM _hazard_test_table")
+        with pytest.raises(psycopg.errors.DependentObjectsStillExist):
+            admin.execute("DROP TABLE _hazard_test_table")   # proves the hazard is real
+
+        # the identical query load.py runs before reloading - matched here, but only the
+        # hazard view itself is dropped below, never the real team_view_* views load.py's
+        # own run would also (correctly) catch in this same sweep
+        stale = [r[0] for r in admin.execute(
+            "SELECT viewname FROM pg_views WHERE viewname LIKE 'team_view_%'").fetchall()]
+        assert "team_view__hazard_test" in stale
+        admin.execute('DROP VIEW IF EXISTS "team_view__hazard_test"')
+        admin.execute("DROP TABLE _hazard_test_table")   # no longer blocked
+    finally:
+        admin.execute("DROP VIEW IF EXISTS team_view__hazard_test")
+        admin.execute("DROP TABLE IF EXISTS _hazard_test_table")
+
 def test_setup_script_provisions_every_real_team_and_each_is_actually_isolated():
     """The real script (not the hand-built fixture above), run against the real ownership table -
     checks that a sample of the real provisioned roles each see exactly their own team's rows and
@@ -70,6 +98,7 @@ def test_setup_script_provisions_every_real_team_and_each_is_actually_isolated()
     teams = admin.execute("SELECT DISTINCT dataset, team FROM ownership ORDER BY 1, 2").fetchall()
     assert teams, "ownership table is empty - run scripts/load.py first"
     provisioned = {}
+    any_team_saw_rows = False
     try:
         for dataset, team in teams:
             role, view, password = mod.provision(admin, dataset, team)
@@ -99,7 +128,19 @@ def test_setup_script_provisions_every_real_team_and_each_is_actually_isolated()
             assert seen == expected, f"{role} saw {seen} rows, expected exactly {expected} for team {team!r}"
 
             seen_keys = {r[0] for r in restricted.execute(f"SELECT DISTINCT {key_col} FROM {view}").fetchall()}
-            assert seen_keys and seen_keys <= owned_keys   # never a component/service outside this team's own
+            assert seen_keys <= owned_keys   # never a component/service outside this team's own
+            # a team can legitimately own zero rows of a given dataset in a small sample load
+            # (not every component appears in every 2k-line slice) - that's not a leak, so it's
+            # not asserted per-team; it's confirmed instead by at least one real team with real
+            # rows across the whole run below.
+            if seen_keys:
+                any_team_saw_rows = True
+        assert any_team_saw_rows, "no provisioned team saw any rows at all - the view/grant mechanism itself is broken"
     finally:
+        # this test provisions the SAME role/view names scripts/setup_team_access.py uses for the
+        # real demo-ready setup, not a throwaway copy - dropping them here would mean running the
+        # test suite silently un-provisions row-level security for anyone who set it up earlier.
+        # re-provisioning (fresh passwords; nothing durable depended on the old ones) restores
+        # exactly the state scripts/setup_team_access.py would leave, so the suite is non-destructive.
         for dataset, team in teams:
-            mod.drop(admin, dataset, team)
+            mod.provision(admin, dataset, team)
