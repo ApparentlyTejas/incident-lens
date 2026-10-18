@@ -36,7 +36,7 @@ git clone https://github.com/ApparentlyTejas/incident-lens.git && cd incident-le
 ./scripts/setup.sh --sample      # seconds: 2,000-line Loghub samples, good for trying everything
 ./scripts/setup.sh               # full corpus: downloads BGL (709 MB) + OpenStack (58 MB) + Zookeeper (10 MB) from Zenodo, parses, loads, indexes
 pytest -q --asyncio-mode=auto tests    # needs the --sample load (45 tests, numbers checked against plain SQL)
-python tests/stdio_smoke.py            # spawns the server like Claude does and calls a tool
+python3 tests/stdio_smoke.py           # spawns the server like Claude does and calls a tool
 ```
 
 `setup.sh` = start SereneDB → download (`curl -L ...?download=1`) → `prep/parse_*.py` (raw log → Parquet) → `scripts/load.py` (`sql/schema.sql`, `ownership.sql`, `indexes.sql`, `readonly_role.sql`; prints load and index-build timings).
@@ -45,7 +45,7 @@ Connection: the server uses the read-only role `il_reader` (override with `SEREN
 
 ## Connect Claude
 
-Use absolute paths (`run_server.py` works from any directory).
+Use absolute paths (`run_server.py` works from any directory). Use the **same `python3`** that `scripts/setup.sh` used to install the requirements - if your system's plain `python3` was too old and you ran setup with `python3.11`/`python3.12` instead (see the Quickstart note above), use that exact same command here too, not plain `python3`, or the server will fail to start with `ModuleNotFoundError: No module named 'mcp'`.
 
 **Claude Code**
 ```bash
@@ -57,11 +57,11 @@ claude mcp add incident-lens -- python3 /ABS/PATH/incident-lens/run_server.py
 ```
 Optional HTTP transport: `python3 run_server.py --http`.
 
-Then start with a role prompt (`engineer_investigation`, `lead_review`, `manager_priorities` appear as MCP prompts) or just ask, e.g. *"Find 'parity error' in BGL and show what happened around the first hit."* Terminal fallback that calls the same tools through the API: `python cli/ask.py --role lead "Which teams had the most severe entries?"`.
+Then start with a role prompt (`engineer_investigation`, `lead_review`, `manager_priorities` appear as MCP prompts) or just ask, e.g. *"Find 'parity error' in BGL and show what happened around the first hit."* Terminal fallback that calls the same tools through the API: `python3 cli/ask.py --role lead "Which teams had the most severe entries?"`.
 
 ## Web console
 
-`export ANTHROPIC_API_KEY=... && python ui/server.py` then open <http://127.0.0.1:8787>. Same role prompts and the same 13 tools as Claude Code/Desktop, called through the Anthropic API like `cli/ask.py` - this is a UI layer, not a second implementation. Pick a role and a dataset (BGL, OpenStack or Zookeeper) and chat on the left; every tool call Claude makes lands on the right as it happens, with its evidence_id, the exact SQL that ran, and its position in the hash-chained ledger. Follow-up questions keep real conversation context (client-accumulated, server-validated), and switching role or dataset starts a fresh conversation rather than quietly reusing the old one's context. A "Simulate Tamper" button clones the ledger, hand-edits one stored number, and shows `verify_ledger_integrity` catch it - on a scratch copy, so it never touches the real ledger. Without a key, the chat panel reports that clearly; the overview and ledger panels (`/api/overview`, `/api/ledger/status`) work regardless, since they only talk to SereneDB and the ledger.
+`export ANTHROPIC_API_KEY=... && python3 ui/server.py` then open <http://127.0.0.1:8787>. Same role prompts and the same 13 tools as Claude Code/Desktop, called through the Anthropic API like `cli/ask.py` - this is a UI layer, not a second implementation. Pick a role and a dataset (BGL, OpenStack or Zookeeper) and chat on the left; every tool call Claude makes lands on the right as it happens, with its evidence_id, the exact SQL that ran, and its position in the hash-chained ledger. Follow-up questions keep real conversation context (client-accumulated, server-validated), and switching role or dataset starts a fresh conversation rather than quietly reusing the old one's context. A "Simulate Tamper" button clones the ledger, hand-edits one stored number, and shows `verify_ledger_integrity` catch it - on a scratch copy, so it never touches the real ledger. Without a key, the chat panel reports that clearly; the overview and ledger panels (`/api/overview`, `/api/ledger/status`) work regardless, since they only talk to SereneDB and the ledger.
 
 ![Engineer role answering a real question against the full BGL corpus, with the evidence ledger filling in live on the right](docs/images/console.png)
 
@@ -124,7 +124,7 @@ The `template` column is derived by `prep/templating.py` (numbers, ids, hosts �
 
 ## Per-team database access (row-level security)
 
-`python scripts/setup_team_access.py` provisions one DB role + one filtered view per team straight from the `ownership` table - a team's own connection can see **only** its own component's/service's rows, enforced by SereneDB's grant system, not application code. SereneDB's access-control model is grants and views rather than Postgres-style `CREATE POLICY` row-level security, so this reaches the same real guarantee with the primitives SereneDB does support: a per-team `CREATE VIEW` pre-filtered by `ownership`, a role with its base-table grants revoked, `SELECT` granted only on that one view. `--drop` removes everything it created.
+`python3 scripts/setup_team_access.py` provisions one DB role + one filtered view per team straight from the `ownership` table - a team's own connection can see **only** its own component's/service's rows, enforced by SereneDB's grant system, not application code. SereneDB's access-control model is grants and views rather than Postgres-style `CREATE POLICY` row-level security, so this reaches the same real guarantee with the primitives SereneDB does support: a per-team `CREATE VIEW` pre-filtered by `ownership`, a role with its base-table grants revoked, `SELECT` granted only on that one view. `--drop` removes everything it created.
 
 This isn't just provisioned and assumed to work - `tests/test_team_access.py` connects **as** each of the 15 real team roles (never as admin) and proves: the base tables and the `ownership` table itself are both denied (`InsufficientPrivilege`), the team's own view returns the exact row count a plain SQL query against `ownership` says it should, and every row's `component`/`service` belongs to that team and no other.
 

@@ -76,9 +76,9 @@ bucket every row) stay under 16ms.
 ## Reproducing this
 
 ```bash
-python prep/parse_thunderbird.py data/raw/Thunderbird.log data/processed/thunderbird.parquet
-python scripts/load_thunderbird.py data/processed/thunderbird.parquet --limit 8000000   # or higher, memory permitting
-python eval/huge_dataset_benchmark.py --n 12
+python3 prep/parse_thunderbird.py data/raw/Thunderbird.log data/processed/thunderbird.parquet
+python3 scripts/load_thunderbird.py data/processed/thunderbird.parquet --limit 8000000   # or higher, memory permitting
+python3 eval/huge_dataset_benchmark.py --n 12
 ```
 
 ## MCP connection
@@ -141,7 +141,7 @@ span, all the way up to the full 50 files / 50 billion rows, with no change to t
 ### Reproducing this
 
 ```bash
-python eval/remote_parquet_benchmark.py
+python3 eval/remote_parquet_benchmark.py
 ```
 
 Needs only `SERENEDB_ADMIN_DSN` (or the same default `127.0.0.1:7890` as everywhere else in this
