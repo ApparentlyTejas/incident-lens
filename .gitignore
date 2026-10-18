@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv_live_demo/
 venv/
 
 # local SereneDB binary + data dir (downloaded by scripts/start_serenedb.sh)
