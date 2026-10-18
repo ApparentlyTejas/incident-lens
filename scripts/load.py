@@ -36,6 +36,16 @@ def main():
         if not p.exists(): sys.exit(f"missing {p} - run scripts/setup.sh (full) or prep on the samples first")
     conn = psycopg.connect(a.dsn, autocommit=True)
     subs = {"BGL_PARQUET": str(bgl), "OS_PARQUET": str(osp)}
+    # scripts/setup_team_access.py's per-team views depend on bgl_logs/openstack_logs - schema.sql's
+    # plain DROP TABLE has no CASCADE, so a reload after provisioning team access used to fail outright
+    # ("view ... depends on table ..."). Drop any such views first so a reload is idempotent either way;
+    # whoever reloaded data re-runs scripts/setup_team_access.py afterward to get them back.
+    stale_views = [r[0] for r in conn.execute(
+        "SELECT viewname FROM pg_views WHERE viewname LIKE 'team_view_%'").fetchall()]
+    for v in stale_views:
+        conn.execute(f'DROP VIEW IF EXISTS "{v}"')
+    if stale_views:
+        print(f"dropped {len(stale_views)} pre-existing team view(s) before reload - re-run scripts/setup_team_access.py after this if you need them back")
     t = time.time(); run_file(conn, "schema.sql", subs); print(f"tables loaded in {time.time()-t:.1f}s")
     run_file(conn, "ownership.sql", subs)
     t = time.time(); run_file(conn, "indexes.sql", subs); print(f"inverted indexes built + refreshed in {time.time()-t:.1f}s")
