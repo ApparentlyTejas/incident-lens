@@ -1,6 +1,7 @@
 -- FICTIONAL component -> team mapping, invented for this challenge (the brief asks us to).
 -- BGL: keyed on the `component` column.  OpenStack: keyed on the `service` column
 -- (nova-api / nova-compute / nova-scheduler), because that is the unit a team plausibly owns.
+-- Zookeeper: keyed on the `component` column (the Java class that logged the line).
 INSERT INTO ownership VALUES
  ('bgl','KERNEL','Kernel & Runtime'),
  ('bgl','APP','Application Support'),
@@ -15,4 +16,34 @@ INSERT INTO ownership VALUES
  ('bgl','DIAGS','Monitoring & Diagnostics'),
  ('openstack','nova-api','API Platform'),
  ('openstack','nova-compute','Compute'),
- ('openstack','nova-scheduler','Scheduling');
+ ('openstack','nova-scheduler','Scheduling'),
+ ('zookeeper','QuorumCnxManager','Consensus & Membership'),
+ ('zookeeper','QuorumCnxManager$SendWorker','Consensus & Membership'),
+ ('zookeeper','QuorumCnxManager$RecvWorker','Consensus & Membership'),
+ ('zookeeper','QuorumCnxManager$Listener','Consensus & Membership'),
+ ('zookeeper','QuorumPeer','Consensus & Membership'),
+ ('zookeeper','QuorumPeerConfig','Consensus & Membership'),
+ ('zookeeper','QuorumPeerMain','Consensus & Membership'),
+ ('zookeeper','FastLeaderElection','Leader Election'),
+ ('zookeeper','Leader','Leader Election'),
+ ('zookeeper','Leader$LearnerCnxAcceptor','Leader Election'),
+ ('zookeeper','Leader$ToBeAppliedRequestProcessor','Leader Election'),
+ ('zookeeper','Learner','Leader Election'),
+ ('zookeeper','LearnerHandler','Leader Election'),
+ ('zookeeper','Follower','Leader Election'),
+ ('zookeeper','FollowerZooKeeperServer','Leader Election'),
+ ('zookeeper','NIOServerCnxn','Client Connections'),
+ ('zookeeper','NIOServerCnxnFactory','Client Connections'),
+ ('zookeeper','ZooKeeperServer','Client Connections'),
+ ('zookeeper','SessionTrackerImpl','Client Connections'),
+ ('zookeeper','PrepRequestProcessor','Request Processing'),
+ ('zookeeper','CommitProcessor','Request Processing'),
+ ('zookeeper','SyncRequestProcessor','Request Processing'),
+ ('zookeeper','FinalRequestProcessor','Request Processing'),
+ ('zookeeper','FollowerRequestProcessor','Request Processing'),
+ ('zookeeper','ProposalRequestProcessor','Request Processing'),
+ ('zookeeper','FileTxnSnapLog','Storage & Persistence'),
+ ('zookeeper','FileSnap','Storage & Persistence'),
+ ('zookeeper','FileTxnLog','Storage & Persistence'),
+ ('zookeeper','DatadirCleanupManager','Storage & Persistence'),
+ ('zookeeper','Environment','Startup & Config');
