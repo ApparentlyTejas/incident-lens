@@ -9,13 +9,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#07090d; --bg-grid:#0c1016;
-  --surface:#0f141b; --surface-raised:#141b24; --surface-hi:#1a232e;
-  --border:#212b36; --border-bright:#2c3a49;
-  --text:#dde6ee; --text-dim:#8b97a4; --text-mute:#525d68;
-  --cyan:#35e4e0; --cyan-dim:#0f6f6e; --cyan-glow:rgba(53,228,224,.35);
-  --amber:#f2a93c; --amber-dim:#7a5a1e;
-  --good:#39d98a; --critical:#ff5f6d; --warn:#f2c94c;
+  /* SereneDB's own brand (violet + sky blue) on a warm charcoal, not pure black -
+     the same identity as docs/slides.html, carried into the actual product */
+  --bg:#0d0c14; --bg-grid:#151320;
+  --surface:#161420; --surface-raised:#1c1929; --surface-hi:#242032;
+  --border:#2a2538; --border-bright:#39324a;
+  --text:#ece9f5; --text-dim:#a39dbb; --text-mute:#726c8a;
+  --cyan:#a384fa; --cyan-dim:#5e4a96; --cyan-glow:rgba(163,132,250,.35);
+  --amber:#80beff; --amber-dim:#3d6198;
+  --good:#5fd99a; --critical:#ff7a7a; --warn:#f2c94c;
   --mono:'JetBrains Mono',ui-monospace,monospace;
   --display:'Rajdhani',sans-serif;
   --body:'IBM Plex Sans',sans-serif;
@@ -27,8 +29,8 @@ body{
   margin:0; background:var(--bg); color:var(--text); font-family:var(--body);
   padding-left:max(0px, env(safe-area-inset-left,0px)); padding-right:max(0px, env(safe-area-inset-right,0px));
   background-image:
-    radial-gradient(circle at 15% -10%, rgba(53,228,224,.07), transparent 40%),
-    radial-gradient(circle at 100% 0%, rgba(242,169,60,.05), transparent 45%),
+    radial-gradient(circle at 15% -10%, rgba(163,132,250,.08), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(128,190,255,.06), transparent 45%),
     linear-gradient(var(--bg-grid) 1px, transparent 1px), linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
   background-size: auto, auto, 28px 28px, 28px 28px;
   background-position: 0 0, 0 0, -1px -1px, -1px -1px;
@@ -103,7 +105,7 @@ button{font-family:var(--body)}
   transition:all .15s; text-align:center;
 }
 .role-btn small{display:block; font-family:var(--body); font-weight:400; font-size:10px; color:var(--text-mute); letter-spacing:.02em; margin-top:2px; text-transform:none}
-.role-btn.active{border-color:var(--cyan); color:var(--cyan); background:rgba(53,228,224,.06); box-shadow:0 0 0 1px var(--cyan) inset}
+.role-btn.active{border-color:var(--cyan); color:var(--cyan); background:rgba(163,132,250,.06); box-shadow:0 0 0 1px var(--cyan) inset}
 .role-btn.active small{color:var(--cyan-dim)}
 
 .dataset-row{display:flex; align-items:center; gap:10px; padding:0 22px 14px}
@@ -113,14 +115,14 @@ button{font-family:var(--body)}
   padding:6px 13px; border-radius:7px; border:1px solid var(--border); background:var(--surface);
   color:var(--text-dim); font-family:var(--mono); font-size:11.5px; letter-spacing:.02em; cursor:pointer; transition:all .15s;
 }
-.ds-btn.active{border-color:var(--amber); color:var(--amber); background:rgba(242,169,60,.08)}
+.ds-btn.active{border-color:var(--amber); color:var(--amber); background:rgba(128,190,255,.08)}
 
 .transcript{flex:1; padding:4px 22px 10px; display:flex; flex-direction:column; gap:14px; overflow-y:auto}
 .msg{max-width:92%; animation:rise .3s ease both}
 @keyframes rise{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
 .msg.user{align-self:flex-end}
 .msg .bubble{padding:12px 14px; border-radius:11px; font-size:14px; line-height:1.55}
-.msg.user .bubble{background:rgba(53,228,224,.08); border:1px solid var(--cyan-dim); color:var(--text)}
+.msg.user .bubble{background:rgba(163,132,250,.08); border:1px solid var(--cyan-dim); color:var(--text)}
 .msg.assistant .bubble{background:var(--surface); border:1px solid var(--border)}
 .msg .bubble p{margin:0 0 8px}
 .msg .bubble p:last-child{margin-bottom:0}
@@ -130,8 +132,8 @@ button{font-family:var(--body)}
 .contract-block.checks{border-color:var(--good)}
 .contract-block.unknown{border-color:var(--text-mute)}
 .contract-block .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; color:var(--text-mute); text-transform:uppercase; display:block; margin-bottom:4px}
-.cite{font-family:var(--mono); font-size:11.5px; color:var(--cyan); background:rgba(53,228,224,.08); padding:1px 5px; border-radius:4px; cursor:pointer; white-space:nowrap}
-.cite:hover{background:rgba(53,228,224,.2)}
+.cite{font-family:var(--mono); font-size:11.5px; color:var(--cyan); background:rgba(163,132,250,.08); padding:1px 5px; border-radius:4px; cursor:pointer; white-space:nowrap}
+.cite:hover{background:rgba(163,132,250,.2)}
 
 .thinking{font-family:var(--mono); font-size:12px; color:var(--text-mute); padding:2px 2px 6px; font-style:italic}
 .typing-dots{display:inline-flex; gap:3px; align-items:center; padding:10px 14px}
@@ -141,10 +143,10 @@ button{font-family:var(--body)}
 
 .running-tool{
   display:flex; align-items:center; gap:9px; padding:10px 14px; font-family:var(--mono); font-size:12px;
-  color:var(--cyan); background:rgba(53,228,224,.05); border:1px solid var(--cyan-dim); border-radius:9px;
+  color:var(--cyan); background:rgba(163,132,250,.05); border:1px solid var(--cyan-dim); border-radius:9px;
   animation:rise .25s ease both;
 }
-.running-tool .spinner{width:11px; height:11px; border-radius:50%; border:2px solid rgba(53,228,224,.25); border-top-color:var(--cyan); flex:none; animation:spin .7s linear infinite}
+.running-tool .spinner{width:11px; height:11px; border-radius:50%; border:2px solid rgba(163,132,250,.25); border-top-color:var(--cyan); flex:none; animation:spin .7s linear infinite}
 .running-tool b{color:var(--text); font-weight:600}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -155,7 +157,7 @@ button{font-family:var(--body)}
 }
 .composer input:focus{outline:none; border-color:var(--cyan)}
 .composer button{
-  background:var(--cyan); color:#032; border:none; border-radius:10px; padding:0 20px; font-family:var(--display);
+  background:var(--cyan); color:#140d26; border:none; border-radius:10px; padding:0 20px; font-family:var(--display);
   font-weight:700; letter-spacing:.04em; cursor:pointer; transition:filter .15s;
 }
 .composer button:hover{filter:brightness(1.1)}
@@ -165,7 +167,7 @@ button{font-family:var(--body)}
 .preset:hover{color:var(--cyan); border-color:var(--cyan)}
 
 /* ---------------- ledger column ---------------- */
-.ledger-col{min-height:100vh; display:flex; flex-direction:column; background:linear-gradient(180deg, rgba(53,228,224,.02), transparent 180px)}
+.ledger-col{min-height:100vh; display:flex; flex-direction:column; background:linear-gradient(180deg, rgba(163,132,250,.02), transparent 180px)}
 .ledger-feed{flex:1; padding:0 18px 20px; overflow-y:auto; position:relative}
 .ledger-empty{color:var(--text-mute); font-size:12.5px; font-family:var(--mono); padding:30px 4px; line-height:1.7}
 .ecard{
@@ -181,14 +183,14 @@ button{font-family:var(--body)}
 .chain-node{position:absolute; left:4px; top:18px; width:9px; height:9px; border-radius:50%; background:var(--bg); border:2px solid var(--cyan); box-shadow:0 0 6px 0 var(--cyan-glow)}
 .ecard-head{display:flex; align-items:baseline; gap:8px; margin-bottom:6px}
 .ecard-tool{font-family:var(--display); font-weight:700; font-size:14px; color:var(--text); letter-spacing:.02em}
-.ecard-eid{font-family:var(--mono); font-size:10.5px; color:var(--cyan); background:rgba(53,228,224,.08); padding:1px 6px; border-radius:5px; margin-left:auto}
+.ecard-eid{font-family:var(--mono); font-size:10.5px; color:var(--cyan); background:rgba(163,132,250,.08); padding:1px 6px; border-radius:5px; margin-left:auto}
 .ecard-ms{font-family:var(--mono); font-size:10.5px; color:var(--text-mute)}
 .ecard-row{display:flex; justify-content:space-between; align-items:baseline; margin-top:4px}
 .ecard-metric{font-family:var(--mono); font-size:22px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums}
 .ecard-metric small{font-size:10px; font-weight:400; color:var(--text-mute); margin-left:5px; text-transform:uppercase; letter-spacing:.06em}
 .ecard-flags{display:flex; gap:5px}
 .flag{font-size:9.5px; font-family:var(--mono); padding:2px 6px; border-radius:5px; letter-spacing:.05em; text-transform:uppercase}
-.flag.trunc{background:rgba(242,169,60,.12); color:var(--amber)}
+.flag.trunc{background:rgba(128,190,255,.12); color:var(--amber)}
 .flag.full{background:rgba(57,217,138,.1); color:var(--good)}
 .ecard-hash{font-family:var(--mono); font-size:9.5px; color:var(--text-mute); margin-top:8px; display:flex; align-items:center; gap:5px; overflow:hidden}
 .ecard-hash .h{color:var(--cyan-dim)}
@@ -221,29 +223,38 @@ button{font-family:var(--body)}
 .scroll-fade{position:sticky; bottom:0; height:0}
 
 /* ---------------- report card (generate_report's special-cased evidence card) ---------------- */
-.ecard.report{border-color:var(--amber-dim); background:linear-gradient(165deg, rgba(242,169,60,.06), var(--surface-raised) 55%)}
+.ecard.report{border-color:var(--amber-dim); background:linear-gradient(165deg, rgba(128,190,255,.06), var(--surface-raised) 55%)}
 .ecard.report .chain-node{border-color:var(--amber)}
-.ecard.report .ecard-eid{color:var(--amber); background:rgba(242,169,60,.1)}
+.ecard.report .ecard-eid{color:var(--amber); background:rgba(128,190,255,.1)}
 .report-title{font-family:var(--display); font-weight:700; font-size:15px; color:var(--text); margin-top:2px}
 .report-view-btn{
   margin-top:9px; width:100%; font-family:var(--mono); font-size:11px; letter-spacing:.03em; padding:7px 0;
-  border-radius:7px; border:1px solid var(--amber-dim); background:rgba(242,169,60,.08); color:var(--amber); cursor:pointer;
+  border-radius:7px; border:1px solid var(--amber-dim); background:rgba(128,190,255,.08); color:var(--amber); cursor:pointer;
 }
-.report-view-btn:hover{background:rgba(242,169,60,.16)}
+.report-view-btn:hover{background:rgba(128,190,255,.16)}
 .report-modal-body{white-space:pre-wrap; word-break:break-word; font-family:var(--body); font-size:13.5px; line-height:1.6; color:var(--text-dim);
   background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:16px; max-height:60vh; overflow:auto}
 .report-modal-body h1{font-family:var(--display); font-size:19px; color:var(--text); margin:0 0 10px}
 .report-modal-body h2{font-family:var(--display); font-size:14px; color:var(--cyan); letter-spacing:.04em; text-transform:uppercase; margin:18px 0 8px; border-top:1px solid var(--border); padding-top:14px}
 .report-modal-body h3{font-family:var(--mono); font-size:12.5px; color:var(--text); margin:14px 0 4px}
-.report-modal-body code{font-family:var(--mono); font-size:12px; color:var(--amber); background:rgba(242,169,60,.08); padding:1px 4px; border-radius:4px}
+.report-modal-body code{font-family:var(--mono); font-size:12px; color:var(--amber); background:rgba(128,190,255,.08); padding:1px 4px; border-radius:4px}
 .report-copy-btn{margin-top:12px; width:100%}
 
 /* ---------------- boot sequence ---------------- */
-#boot{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:3px}
-#boot .line{font-family:var(--mono); font-size:12.5px; color:var(--text-mute); opacity:0; animation:bootline .35s ease forwards}
+#boot{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px}
+.boot-mark{
+  width:52px; height:52px; border-radius:14px; border:1px solid var(--border-bright); margin-bottom:14px;
+  background:linear-gradient(145deg, var(--surface-hi), var(--surface));
+  display:flex; align-items:center; justify-content:center; position:relative;
+  box-shadow:0 0 28px -4px var(--cyan-glow) inset; opacity:0; animation:bootrise .5s ease forwards;
+}
+.boot-mark::after{content:"";width:14px;height:14px;border-radius:50%;background:var(--cyan);box-shadow:0 0 16px 3px var(--cyan-glow);animation:pulse 2.2s ease-in-out infinite}
+.boot-title{font-family:var(--display); font-weight:700; font-size:26px; letter-spacing:.02em; color:var(--text); opacity:0; animation:bootrise .5s ease .1s forwards}
+.boot-sub{font-family:var(--body); font-size:13.5px; color:var(--text-dim); margin-bottom:18px; opacity:0; animation:bootrise .5s ease .2s forwards}
+@keyframes bootrise{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+#boot .line{font-family:var(--mono); font-size:12px; color:var(--text-mute); opacity:0; animation:bootline .4s ease forwards}
 #boot .line b{color:var(--cyan)}
 #boot .line.ok b{color:var(--good)}
-#boot .cursor{display:inline-block; width:7px; height:13px; background:var(--cyan); margin-left:2px; vertical-align:middle; animation:blink .8s steps(2) infinite}
 @keyframes bootline{to{opacity:1}}
 #boot.fadeout{animation:bootfade .5s ease forwards}
 @keyframes bootfade{to{opacity:0; visibility:hidden}}
@@ -252,11 +263,11 @@ button{font-family:var(--body)}
 <body>
 
 <div id="boot">
-  <div class="line" style="animation-delay:.05s">incident-lens --connect serenedb:7890</div>
-  <div class="line" style="animation-delay:.3s">loading evidence ledger&hellip; <b id="bootEntries">&mdash;</b> entries</div>
-  <div class="line" style="animation-delay:.55s">verifying hash chain&hellip;</div>
-  <div class="line ok" style="animation-delay:.9s">chain <b>verified</b>. corpus online.</div>
-  <div class="line" style="animation-delay:1.1s">&gt;<span class="cursor"></span></div>
+  <div class="boot-mark"></div>
+  <div class="boot-title">Incident Lens</div>
+  <div class="boot-sub">Connecting to your logs&hellip;</div>
+  <div class="line" style="animation-delay:.35s">Evidence ledger loaded, <b id="bootEntries">&mdash;</b> entries on record</div>
+  <div class="line ok" style="animation-delay:.75s">Hash chain <b>verified</b>. Everything checks out.</div>
 </div>
 
 <div class="topbar">
