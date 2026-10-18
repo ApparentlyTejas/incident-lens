@@ -278,6 +278,7 @@ button{font-family:var(--body)}
   <div class="stat-strip" id="statStrip">
     <div class="stat"><span class="n" id="statBgl">&mdash;</span><span class="l">BGL rows</span></div>
     <div class="stat"><span class="n" id="statOs">&mdash;</span><span class="l">OpenStack rows</span></div>
+    <div class="stat"><span class="n" id="statZk">&mdash;</span><span class="l">Zookeeper rows</span></div>
     <div class="stat"><span class="n" id="statNodes">&mdash;</span><span class="l">Nodes</span></div>
     <div class="stat"><span class="n" id="statSpan">&mdash;</span><span class="l">Span (days)</span></div>
   </div>
@@ -433,17 +434,18 @@ async function loadOverview(){
   try{
     const r = await fetch('/api/overview'); const d = await r.json();
     if(d.error) throw new Error(d.error);
-    const bgl=d.datasets.bgl, os=d.datasets.openstack;
+    const bgl=d.datasets.bgl, os=d.datasets.openstack, zk=d.datasets.zookeeper;
     $('#statStrip').classList.remove('unreachable');
     countUp($('#statBgl'), bgl.rows);
     countUp($('#statOs'), os.rows);
+    if(zk) countUp($('#statZk'), zk.rows);
     countUp($('#statNodes'), bgl.distinct_nodes);
     const days = Math.round((new Date(bgl.last_ts.replace(' ','T')) - new Date(bgl.first_ts.replace(' ','T')))/86400000);
     countUp($('#statSpan'), days);
     overviewRetryMs = 4000; // reset backoff once healthy again
   }catch(e){
     $('#statStrip').classList.add('unreachable');
-    ['statBgl','statOs','statNodes','statSpan'].forEach(id=>{ $('#'+id).textContent = '···'; });
+    ['statBgl','statOs','statZk','statNodes','statSpan'].forEach(id=>{ $('#'+id).textContent = '···'; });
     overviewRetryMs = Math.min(overviewRetryMs * 1.5, 20000);
     setTimeout(loadOverview, overviewRetryMs);
   }

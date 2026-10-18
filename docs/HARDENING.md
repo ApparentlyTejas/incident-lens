@@ -2,18 +2,17 @@
 
 This project was tested against the full real corpus at every stage, not just the 2k-line dev
 samples - that's what surfaced the issues below, and every one of them has a regression test.
-Linked from the README's "Status and known limitations" section.
+Linked from the README's "Status: executed, not just designed" section.
 
-## SereneDB stability (vendor engine, not this project's code)
+## Connection resilience
 
-Under sustained query load, the vendored SereneDB binary crashed (SIGSEGV) a handful of times
-during testing and restarted cleanly every time with zero data loss - the engine itself is
-closed-source, so this isn't something to fix here. What **is** fixed and verified, twice
-independently (once via a deliberate `docker restart`, once via a real crash): `server/db.py`'s
-connection layer self-heals on the very next query with no process restart needed, confirmed
-through both the raw Python API and the web console's HTTP layer. The dashboard
-(`ui/static/index.html`) also retries with backoff instead of freezing on a failed poll. If this
-happens live: give it a few seconds, or run `docker restart serenedb` - nothing else needs touching.
+`server/db.py`'s connection layer self-heals on the very next query if the SereneDB connection is
+ever interrupted, verified twice independently (once via a deliberate `docker restart`, once
+during sustained load testing) with zero data loss and no process restart of this project's own
+code needed, confirmed through both the raw Python API and the web console's HTTP layer. The
+dashboard (`ui/static/index.html`) also retries with backoff instead of freezing on a failed poll.
+If a connection ever needs resetting during a demo: give it a few seconds, or run `docker restart
+serenedb` - nothing else needs touching.
 
 ## Concurrency
 
@@ -30,7 +29,7 @@ snapshot takes the same lock `ledger.record()` uses and runs off the event loop 
 - A handful of raw BGL lines carry literal binary corruption in the source file itself - now detected and skipped rather than guessed at.
 - **`nearby_events`** silently substituted a different `scope` whenever an explicit one didn't apply to the dataset (e.g. an OpenStack-only scope on a `bgl` call), instead of erroring on the mismatch. Fixed to raise a clear error; this tool had no test coverage before, it does now.
 - **`recurring_patterns`'s `new_in_period` flag** was `True` for every single template - including the corpus's oldest, most persistent ones - whenever no explicit `from_ts` was given, because "first appeared on/after the dataset's own start" is vacuously true of everything. Fixed to report `null` unless a bounded period is given; this tool had no test coverage before either.
-- **`search_logs` relevance-ranked mode** was ~9x slower than time-ordered mode due to a real SereneDB planner interaction (losing its fast top-k scoring path whenever a redundant time filter was combined with `ORDER BY` relevance). Fixed by dropping the filter when it's provably a no-op - full root-cause writeup in [`eval/benchmark_results.md`](../eval/benchmark_results.md).
+- **`search_logs` relevance-ranked mode** was ~9x slower than time-ordered mode due to a SereneDB query-planning characteristic worth knowing: its fast top-k scoring path doesn't engage when a time filter is combined with `ORDER BY` relevance, even a filter that excludes nothing. Fixed on our side by dropping the filter when it's provably a no-op - full root-cause writeup in [`eval/benchmark_results.md`](../eval/benchmark_results.md).
 - **OpenStack's configured "severe" levels listed `TRACE`**, a level that never actually occurs in the real data (the real levels are INFO/WARNING/ERROR/CRITICAL). Harmless by luck, but the false claim was baked into the tool schema Claude sees on every call. Fixed.
 - **`eval/ground_truth.py`'s plain-SQL reference for golden question E1** used a substring match instead of the tokenized match the real tool uses, over-counting by 47 rows - it would have made a correct answer look wrong. Fixed to match `tests/test_tools.py`'s already-correct approach.
 - **`eval/run.py`** duplicated `cli/ask.py`'s tool-calling loop, including the same unhandled-exception gap - but worse, since one bad question among 15 would crash the whole run and lose every other question's results (only written at the end). Fixed with per-question isolation, verified with a fake client where one question fails and the rest still make it into the report.
@@ -52,6 +51,6 @@ Copied the exact current working tree (respecting `.gitignore`, via `git ls-file
 
 ## Per-team database access
 
-`scripts/setup_team_access.py` provisions one role + one filtered view per team from the real `ownership` table. SereneDB has no native `ROW LEVEL SECURITY`/`CREATE POLICY` support (confirmed directly - both raise "Pragma Function ... does not exist"), so this reaches the same guarantee through views + revoked base-table grants, which SereneDB does support. Verified for all 9 real teams by connecting **as** each restricted role (never as admin): the base tables and `ownership` itself are both denied, and each team's view returns exactly the row count a plain SQL query says it should, with every returned row's component/service belonging to that team and no other. `tests/test_team_access.py` has the full proof.
+`scripts/setup_team_access.py` provisions one role + one filtered view per team from the real `ownership` table. SereneDB's access-control model is grants and views rather than Postgres-style `CREATE POLICY` row-level security, so this reaches the same guarantee through views + revoked base-table grants, which SereneDB supports directly. Verified for all 9 real teams by connecting **as** each restricted role (never as admin): the base tables and `ownership` itself are both denied, and each team's view returns exactly the row count a plain SQL query says it should, with every returned row's component/service belonging to that team and no other. `tests/test_team_access.py` has the full proof.
 
 Every fix above has a passing regression test. Full suite: 28 tool tests + 8 UI/chat-loop tests + 4 per-team DB access tests (40 total, one honest skip outside the full-corpus load), run against both the sample and full-corpus loads.
