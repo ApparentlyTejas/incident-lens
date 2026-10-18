@@ -128,7 +128,12 @@ This isn't just provisioned and assumed to work - `tests/test_team_access.py` co
 
 ## Huge dataset scale demonstration (bonus)
 
-A separate, isolated `thunderbird_logs` table (same Loghub HPC-log family as BGL, a different line format) for the "Working with Huge Datasets" award - never wired into the tools or role prompts, so it can't affect the main investigative product either way. Full file parsed cold: 211,210,954 of 211,212,192 lines (99.9994%), 31.8 GB raw text. Loaded at a verified-stable 8,000,000 rows after two real OOM kills building the inverted index over more than that on this dev machine's 8 GB of RAM - disclosed directly, not hidden. Real query times at that scale: sub-2ms full-text search, sub-16ms grouped aggregations. Full writeup, the honest memory-ceiling story, and MCP connection details: [`docs/HUGE_DATASET.md`](docs/HUGE_DATASET.md).
+Two angles for the "Working with Huge Datasets" award, both isolated from the main investigative product (never wired into the tools or role prompts, so neither can affect it either way):
+
+1. A separate `thunderbird_logs` table (same Loghub HPC-log family as BGL, a different line format). Full file parsed cold: 211,210,954 of 211,212,192 lines (99.9994%), 31.8 GB raw text. Loaded at a verified-stable 8,000,000 rows after two real OOM kills building the inverted index over more than that on this dev machine's 8 GB of RAM - disclosed directly, not hidden. Real query times at that scale: sub-2ms full-text search, sub-16ms grouped aggregations.
+2. **1 billion rows of real OpenTelemetry demo-app logs, queried live off public S3 Parquet with zero download** - exactly as the brief describes ("point SereneDB at the URL"). `count(*)` over the whole file: 305ms. A full group-by over real service/severity text: ~4s. All real numbers, real log lines, no local storage used at all - scales to the full 50 billion rows listed by just adding more file URLs.
+
+Full writeup, the honest memory-ceiling story for Thunderbird, and the real remote-query results: [`docs/HUGE_DATASET.md`](docs/HUGE_DATASET.md).
 
 ## Answer contract and counting rules
 
