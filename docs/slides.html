@@ -8,7 +8,7 @@
 :root{
   /* SereneDB's own brand: violet #895AF8 + sky blue #80BEFF, dark terminal-style base
      (confirmed from serenedb.com's logo markup - not an invented palette) */
-  --paper:#0B0A14; --paper-line:#18152A; --surface:#13111F; --ink:#EAE7F5; --ink-muted:#8E8AA6;
+  --paper:#0B0A14; --paper-line:#18152A; --surface:#13111F; --ink:#F3F1FA; --ink-muted:#ACA8C4;
   --accent:#A77CFA; --accent-ink:#F1E9FF; --verify:#80BEFF; --rule:#2B2745;
   --margin:#895AF8;
   --disp:'Fraunces',Georgia,serif; --body:'Public Sans',system-ui,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
@@ -17,7 +17,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{
-  background:var(--paper);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;
+  background:var(--paper);color:var(--ink);font-family:var(--body);font-weight:500;-webkit-font-smoothing:subpixel-antialiased;
   background-image:repeating-linear-gradient(var(--paper) 0 27px, var(--paper-line) 27px 28px);
   background-position:0 90px;
 }
@@ -35,29 +35,29 @@ p{margin:0}
 }
 .slide::after{ /* running file header, printed on every page like a dossier */
   content:"INCIDENT LENS — CASE FILE";position:absolute;top:26px;left:96px;
-  font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-muted);opacity:.7;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--ink-muted);opacity:.7;
 }
-.pageno{position:absolute;top:26px;right:40px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-muted);opacity:.7}
+.pageno{position:absolute;top:26px;right:40px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-muted);opacity:.7}
 .slide-inner{max-width:1060px;width:100%;padding-block:64px}
 .filehead{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
-.filehead .no{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:700}
-.filehead .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted)}
+.filehead .no{font-family:var(--mono);font-size:13.5px;color:var(--accent);font-weight:700}
+.filehead .lbl{font-family:var(--mono);font-size:13.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted)}
 .stamp{
-  display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:13px;letter-spacing:.04em;
   padding:4px 10px;border:1.5px solid var(--accent);color:var(--accent);background:transparent;
   text-transform:uppercase;position:relative;
 }
 .stamp.verify{border-color:var(--verify);color:var(--verify)}
 .exhibit{background:var(--surface);border:1px solid var(--rule);padding:22px;position:relative}
 .exhibit::before{content:attr(data-ex);position:absolute;top:-9px;left:14px;background:var(--paper);padding:0 6px;
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-muted)}
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-muted)}
 .grid{display:grid;gap:16px}
 .g2{grid-template-columns:repeat(2,1fr)}
 .g3{grid-template-columns:repeat(3,1fr)}
 .g4{grid-template-columns:repeat(4,1fr)}
 @media (max-width:760px){.g3,.g2,.g4{grid-template-columns:1fr}}
 .stat{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:clamp(24px,3.4vw,34px);color:var(--accent)}
-.stat-label{font-size:12px;color:var(--ink-muted);margin-top:4px;line-height:1.4}
+.stat-label{font-size:13.5px;color:var(--ink-muted);margin-top:4px;line-height:1.4}
 .rule{height:1px;background:var(--rule);border:0;margin:0}
 .ruledbl{height:4px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0}
 .pips{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);
@@ -81,18 +81,18 @@ a{color:var(--verify)}
   <div class="slide-inner">
     <div class="filehead"><span class="no">RE:</span><span class="lbl">National AI Hackathon 2026 · SchubKI · Making Sense of Logs</span></div>
     <h1 style="font-size:clamp(32px,5.2vw,54px);font-weight:700;margin-top:10px;line-height:1.08;font-style:normal">One corpus. Three roles.<br>Every answer has a receipt.</h1>
-    <p style="max-width:640px;margin-top:20px;font-size:16px;color:var(--ink-muted);line-height:1.6">
+    <p style="max-width:640px;margin-top:20px;font-size:17px;color:var(--ink-muted);line-height:1.6">
       Just under 5 million real log lines from a supercomputer and a cloud platform. An engineer, a team lead, and a
       manager each need a different answer from the same logs — and most AI tools over logs either dump raw text
       back at you or confidently invent the parts they don't know.
     </p>
     <div class="grid g3" style="margin-top:34px">
       <div class="exhibit" data-ex="ROLE A"><p class="stamp">Engineer</p>
-        <p style="margin-top:12px;font-size:14.5px;line-height:1.5">What failed, in which component, and what happened just before and after?</p></div>
+        <p style="margin-top:12px;font-size:16px;line-height:1.5">What failed, in which component, and what happened just before and after?</p></div>
       <div class="exhibit" data-ex="ROLE B"><p class="stamp">Team Lead</p>
-        <p style="margin-top:12px;font-size:14.5px;line-height:1.5">Which problems recur, how often, and which team owns them?</p></div>
+        <p style="margin-top:12px;font-size:16px;line-height:1.5">Which problems recur, how often, and which team owns them?</p></div>
       <div class="exhibit" data-ex="ROLE C"><p class="stamp">Manager</p>
-        <p style="margin-top:12px;font-size:14.5px;line-height:1.5">Which observed problems deserve attention first — with no invented impact?</p></div>
+        <p style="margin-top:12px;font-size:16px;line-height:1.5">Which observed problems deserve attention first — with no invented impact?</p></div>
     </div>
   </div>
 </section>
@@ -108,14 +108,14 @@ a{color:var(--verify)}
     </h2>
     <div class="grid g2" style="margin-top:38px;align-items:start">
       <div>
-        <p style="font-size:15px;line-height:1.65;color:var(--ink-muted)">
+        <p style="font-size:16px;line-height:1.65;color:var(--ink-muted)">
           Incident Lens is an MCP server — 13 parameterized tools over BGL and OpenStack logs in SereneDB.
           Claude never writes SQL; the server does all searching and counting, and writes every call to a
           hash-chained evidence ledger before returning. Any Claude — yours, a judge's, anyone's — can connect
           and use it with their own account, from a terminal, Claude Desktop, or a web console built for this.
         </p>
       </div>
-      <div class="exhibit mono" data-ex="LEDGER ENTRY" style="font-size:12px;line-height:1.75">
+      <div class="exhibit mono" data-ex="LEDGER ENTRY" style="font-size:13.5px;line-height:1.75">
         <p class="stamp" style="margin-bottom:10px">E-0097</p>
         tool: search_logs<br>
         scope: bgl · 2005-06-01 → 2006-02-01<br>
@@ -143,8 +143,8 @@ a{color:var(--verify)}
         </defs>
         <style>
           .box{fill:var(--surface);stroke:var(--rule);stroke-width:1.3}
-          .lbl{font-family:'Space Mono',monospace;font-size:13px;fill:var(--ink)}
-          .sub{font-family:'Public Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
+          .lbl{font-family:'Space Mono',monospace;font-size:15px;fill:var(--ink)}
+          .sub{font-family:'Public Sans',sans-serif;font-size:12.5px;fill:var(--ink-muted)}
           .link{stroke:var(--ink-muted);stroke-width:1.3;fill:none;marker-end:url(#arrow)}
         </style>
         <rect x="10" y="90" width="180" height="90" class="box"></rect>
@@ -176,7 +176,7 @@ a{color:var(--verify)}
         <path d="M520,175 L580,230" class="link"></path>
       </svg>
     </div>
-    <p style="margin-top:16px;font-size:13.5px;color:var(--ink-muted);max-width:720px">
+    <p style="margin-top:16px;font-size:15px;color:var(--ink-muted);max-width:720px">
       The read-only role <code class="inline">il_reader</code> can never write; every tool call is logged before it
       is returned, so any number a judge sees can be replayed with <code class="inline">get_evidence</code> and
       independently re-verified with <code class="inline">verify_ledger_integrity</code>.
@@ -190,31 +190,31 @@ a{color:var(--verify)}
   <div class="slide-inner">
     <div class="filehead"><span class="no">§3</span><span class="lbl">One real issue · three lenses · BGL</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">ciod job-launch failures — not a textbook error, a real discovery</h2>
-    <p style="margin-top:8px;font-size:13.5px;color:var(--ink-muted);max-width:720px">A parallel job's executable path is missing or unreadable — found, traced, and quantified by the same three tool paths each role would actually use.</p>
+    <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:720px">A parallel job's executable path is missing or unreadable — found, traced, and quantified by the same three tool paths each role would actually use.</p>
 
     <div class="grid g3" style="margin-top:24px">
       <div class="exhibit" data-ex="A"><p class="stamp">Engineer</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.55">
+        <p style="margin-top:10px;font-size:15px;line-height:1.55">
           First hit: job <span class="mono">65641</span> ("raptor") fails on <b>1,024 distinct nodes</b> within
           milliseconds of each other — not one bad node.
         </p>
-        <p class="mono" style="font-size:10.5px;color:var(--ink-muted);margin-top:10px">search_logs → nearby_events → count_by</p></div>
+        <p class="mono" style="font-size:12px;color:var(--ink-muted);margin-top:10px">search_logs → nearby_events → count_by</p></div>
       <div class="exhibit" data-ex="B"><p class="stamp">Team Lead</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.55">
+        <p style="margin-top:10px;font-size:15px;line-height:1.55">
           <b>112,584 entries, 52,763 episodes</b>. One week (2005-08-08) alone jumps <b>+9,300%</b>. Owner: Application Support.
         </p>
-        <p class="mono" style="font-size:10.5px;color:var(--ink-muted);margin-top:10px">trend → episodes → count_by(team)</p></div>
+        <p class="mono" style="font-size:12px;color:var(--ink-muted);margin-top:10px">trend → episodes → count_by(team)</p></div>
       <div class="exhibit" data-ex="C"><p class="stamp">Manager</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.55">
+        <p style="margin-top:10px;font-size:15px;line-height:1.55">
           Still <b>accelerating</b> (+224% in the last 4 weeks) while two other top-ranked problems dropped to zero.
           Priority score: <b>19,502</b> vs 0 vs 0.
         </p>
-        <p class="mono" style="font-size:10.5px;color:var(--ink-muted);margin-top:10px">corpus_overview → recurring_patterns</p></div>
+        <p class="mono" style="font-size:12px;color:var(--ink-muted);margin-top:10px">corpus_overview → recurring_patterns</p></div>
     </div>
 
     <div class="exhibit" data-ex="CONTROL" style="margin-top:20px;border-color:var(--accent)">
       <p class="stamp">Blind-LLM check</p>
-      <p style="margin-top:10px;font-size:13px;line-height:1.55">
+      <p style="margin-top:10px;font-size:15px;line-height:1.55">
         Asked the identical question, a fresh Claude with <b>no tools and no data access</b> confidently named
         <b>memory/ECC errors on KERNEL</b> as the top cause, with invented frequency numbers — then admitted,
         unprompted, that every specific claim was "a pure guess." Wrong component, wrong category, wrong everything
@@ -230,7 +230,7 @@ a{color:var(--verify)}
   <div class="slide-inner">
     <div class="filehead"><span class="no">§4</span><span class="lbl">A second, deliberately different shape · OpenStack</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">The methodology isn't a one-dataset trick</h2>
-    <p style="margin-top:8px;font-size:13.5px;color:var(--ink-muted);max-width:760px">
+    <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:760px">
       A nova-compute periodic task (image-cache verification) throws and aborts <b>entirely</b> whenever it hits one
       already-deleted instance's disk — a real code-level gap, not an environmental blip.
     </p>
@@ -240,7 +240,7 @@ a{color:var(--verify)}
       <div class="exhibit" data-ex="E3"><p class="stat">8</p><p class="stat-label">different VM instances — never the same one twice</p></div>
       <div class="exhibit" data-ex="E4"><p class="stat">#1</p><p class="stat-label">most frequent ERROR-level template in the whole OpenStack corpus</p></div>
     </div>
-    <p style="margin-top:18px;font-size:13px;color:var(--ink-muted);max-width:760px">
+    <p style="margin-top:18px;font-size:15px;color:var(--ink-muted);max-width:760px">
       Same tool-calling loop, same four-block answer contract, same evidence ledger — run against a completely
       different system with a completely different failure shape. <span class="mono">investigation/openstack_investigation.md</span>,
       checked clean against the citation checker.
@@ -254,23 +254,23 @@ a{color:var(--verify)}
   <div class="slide-inner">
     <div class="filehead"><span class="no">§5</span><span class="lbl">Novelty · a tool the hackathon didn't ask for</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">What a frequency ranking hides, on purpose</h2>
-    <p style="margin-top:8px;font-size:13.5px;color:var(--ink-muted);max-width:760px">
+    <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:760px">
       <span class="mono">concentration_anomalies</span> ranks failures by how <b>confined</b> they are to one
       node or service — not how often they fire. The two rankings disagree, and the disagreement is the finding.
     </p>
     <div class="grid g2" style="margin-top:24px">
       <div class="exhibit" data-ex="FINDING 1"><p class="stamp">Buried by frequency</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.6">
+        <p style="margin-top:10px;font-size:15px;line-height:1.6">
           <span class="mono">MACHINE CHECK DCR read timeout</span> — <b>14,481 entries, confined to exactly 1 node</b>
           out of the whole system. Ranked <b>#33</b> by raw count: invisible past the default view.
         </p></div>
       <div class="exhibit" data-ex="FINDING 2"><p class="stamp">Hidden in plain sight</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.6">
+        <p style="margin-top:10px;font-size:15px;line-height:1.6">
           <span class="mono">idoproxydb hit ASSERT condition</span> — <b>84,168 entries, 1 node</b>. The single
           most concentrated failure in the whole corpus; a human scrolling a frequency list would never isolate it this cleanly.
         </p></div>
     </div>
-    <p style="margin-top:18px;font-size:12.5px;color:var(--ink-muted)">A high ratio says "go check that one node's hardware first." A low ratio says "this is probably systemic." Both are exact counts — no ML, no guessing.</p>
+    <p style="margin-top:18px;font-size:14px;color:var(--ink-muted)">A high ratio says "go check that one node's hardware first." A low ratio says "this is probably systemic." Both are exact counts — no ML, no guessing.</p>
   </div>
 </section>
 
@@ -283,13 +283,13 @@ a{color:var(--verify)}
     <div style="margin-top:22px" id="chart7"></div>
     <div class="grid g2" style="margin-top:18px;gap:14px">
       <div class="exhibit" data-ex="LOAD TIME">
-        <p style="font-size:13px;line-height:1.55">
+        <p style="font-size:15px;line-height:1.55">
           Load + index the full corpus: <b>3.4–9.2s</b> tables, <b>5.9–9.6s</b> inverted indexes, across repeated runs
           on a laptop — no pre-aggregation, no caching tricks.
         </p>
       </div>
       <div class="exhibit" data-ex="ROOT CAUSE">
-        <p style="font-size:13px;line-height:1.55">
+        <p style="font-size:15px;line-height:1.55">
           The one outlier we found (<span class="mono">search_logs</span>, relevance mode) was <b>root-caused and
           fixed</b>, not hidden: a redundant time filter was silently disabling the index's fast top-k scoring path.
           Dropping the provably-redundant filter turned a <b>~1.5s</b> query into <b>~150–215ms</b> — same result,
@@ -307,14 +307,14 @@ a{color:var(--verify)}
     <div class="filehead"><span class="no">§7</span><span class="lbl">The evidence ledger &amp; answer contract</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">Four blocks. Every number carries a receipt — and the receipt book is tamper-evident.</h2>
     <div class="grid g2" style="margin-top:22px;gap:14px">
-      <div class="exhibit" data-ex="BLOCK 1"><p class="stamp">1 · Observed</p><p style="margin-top:10px;font-size:13px;line-height:1.55">Measured facts only — scope, period, filters, <span class="mono">[E-id]</span>. Never <span class="mono">len(rows)</span> as a frequency.</p></div>
-      <div class="exhibit" data-ex="BLOCK 2"><p class="stamp">2 · Hypotheses</p><p style="margin-top:10px;font-size:13px;line-height:1.55">Possible explanations, explicitly labelled. Never stated as fact.</p></div>
-      <div class="exhibit" data-ex="BLOCK 3"><p class="stamp">3 · Recommended checks</p><p style="margin-top:10px;font-size:13px;line-height:1.55">Specific, ordered, each tied to an evidence id.</p></div>
-      <div class="exhibit" data-ex="BLOCK 4"><p class="stamp">4 · Unknown</p><p style="margin-top:10px;font-size:13px;line-height:1.55">What the logs don't establish — cause, downtime, cost, customer impact. Never invented.</p></div>
+      <div class="exhibit" data-ex="BLOCK 1"><p class="stamp">1 · Observed</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Measured facts only — scope, period, filters, <span class="mono">[E-id]</span>. Never <span class="mono">len(rows)</span> as a frequency.</p></div>
+      <div class="exhibit" data-ex="BLOCK 2"><p class="stamp">2 · Hypotheses</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Possible explanations, explicitly labelled. Never stated as fact.</p></div>
+      <div class="exhibit" data-ex="BLOCK 3"><p class="stamp">3 · Recommended checks</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Specific, ordered, each tied to an evidence id.</p></div>
+      <div class="exhibit" data-ex="BLOCK 4"><p class="stamp">4 · Unknown</p><p style="margin-top:10px;font-size:15px;line-height:1.55">What the logs don't establish — cause, downtime, cost, customer impact. Never invented.</p></div>
     </div>
     <div class="exhibit" data-ex="INTEGRITY CHECK" style="margin-top:16px;border-color:var(--verify)">
       <p class="stamp verify">Tamper-evident, not just append-only</p>
-      <p style="margin-top:10px;font-size:13px;line-height:1.6">
+      <p style="margin-top:10px;font-size:15px;line-height:1.6">
         Every ledger entry's hash is <span class="mono">sha256(previous entry's hash + this entry's own content)</span>.
         Hand-edit one stored number with a raw SQL <span class="mono">UPDATE</span> — bypassing every tool — and
         <span class="mono">verify_ledger_integrity</span> catches it and names the exact entry. Proven live in the
@@ -332,14 +332,14 @@ a{color:var(--verify)}
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">The same 13 tools, with the evidence ledger made visible</h2>
     <div class="grid g2" style="margin-top:24px">
       <div class="exhibit" data-ex="UI">
-        <p style="font-size:13px;line-height:1.6">
+        <p style="font-size:15px;line-height:1.6">
           Chat with Claude through the browser — same role prompts, same tools, called through the real Anthropic
           API. Every tool call lands on the right as it happens: the exact SQL, the exact count, the ledger hash,
           chained visibly to the one before it. Click any evidence id to replay it.
         </p>
       </div>
       <div class="exhibit" data-ex="TEST COVERAGE">
-        <p style="font-size:13px;line-height:1.6">
+        <p style="font-size:15px;line-height:1.6">
           Not a second implementation — it's a thin UI over the exact same server. Tested over the real HTTP
           surface (overview, ledger status, tamper demo, evidence replay, path-traversal blocked), and the chat
           loop itself is driven end-to-end by a fake-client test harness, so the only genuinely untested piece is
@@ -356,7 +356,7 @@ a{color:var(--verify)}
   <div class="slide-inner">
     <div class="filehead"><span class="no">§9</span><span class="lbl">Bonus · database row-level security</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">Per-team access, enforced by the database, not application code</h2>
-    <p style="margin-top:8px;font-size:13.5px;color:var(--ink-muted);max-width:760px">
+    <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:760px">
       SereneDB has no native <span class="mono">ROW LEVEL SECURITY</span> / <span class="mono">CREATE POLICY</span> —
       checked directly, not assumed. Built the same real guarantee from primitives it does support: one filtered
       view per team, straight from the ownership table, with that team's base-table grants revoked.
@@ -397,14 +397,14 @@ a{color:var(--verify)}
     <div class="grid g2" style="margin-top:24px">
       <div class="exhibit" data-ex="EXCLUDED" style="border-color:var(--accent)">
         <p class="stamp">Does not establish</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.6">Root cause of any single job's bad path · who submitted the spike · downtime caused · financial or customer impact.</p></div>
+        <p style="margin-top:10px;font-size:15px;line-height:1.6">Root cause of any single job's bad path · who submitted the spike · downtime caused · financial or customer impact.</p></div>
       <div class="exhibit" data-ex="PENDING" style="border-color:var(--verify)">
         <p class="stamp verify">Next up</p>
-        <p style="margin-top:10px;font-size:13px;line-height:1.6">A larger Loghub dataset for the scale award · live golden-set run against the real Claude API · demo recording.</p></div>
+        <p style="margin-top:10px;font-size:15px;line-height:1.6">A larger Loghub dataset for the scale award · live golden-set run against the real Claude API · demo recording.</p></div>
     </div>
     <hr class="ruledbl" style="margin:34px 0 22px">
-    <p class="mono" style="font-size:12.5px;color:var(--ink-muted)">github.com/ApparentlyTejas/incident-lens</p>
-    <p style="margin-top:8px;font-size:14.5px;font-family:var(--disp);font-weight:600">One setup command. Clean checkout to first answered question in minutes — verified, not assumed.</p>
+    <p class="mono" style="font-size:14px;color:var(--ink-muted)">github.com/ApparentlyTejas/incident-lens</p>
+    <p style="margin-top:8px;font-size:16px;font-family:var(--disp);font-weight:600">One setup command. Clean checkout to first answered question in minutes — verified, not assumed.</p>
   </div>
 </section>
 
