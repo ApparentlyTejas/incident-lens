@@ -126,6 +126,10 @@ The `template` column is derived by `prep/templating.py` (numbers, ids, hosts â†
 
 This isn't just provisioned and assumed to work - `tests/test_team_access.py` connects **as** each of the 9 real team roles (never as admin) and proves: the base tables and the `ownership` table itself are both denied (`InsufficientPrivilege`), the team's own view returns the exact row count a plain SQL query against `ownership` says it should, and every row's `component`/`service` belongs to that team and no other.
 
+## Huge dataset scale demonstration (bonus)
+
+A separate, isolated `thunderbird_logs` table (same Loghub HPC-log family as BGL, a different line format) for the "Working with Huge Datasets" award - never wired into the tools or role prompts, so it can't affect the main investigative product either way. Full file parsed cold: 211,210,954 of 211,212,192 lines (99.9994%), 31.8 GB raw text. Loaded at a verified-stable 8,000,000 rows after two real OOM kills building the inverted index over more than that on this dev machine's 8 GB of RAM - disclosed directly, not hidden. Real query times at that scale: sub-2ms full-text search, sub-16ms grouped aggregations. Full writeup, the honest memory-ceiling story, and MCP connection details: [`docs/HUGE_DATASET.md`](docs/HUGE_DATASET.md).
+
 ## Answer contract and counting rules
 
 Every answer has **Observed** (numbers with scope and `[E-id]`), **Hypotheses** (labelled), **Recommended checks** (ordered, with reasons), **Unknown** (cause, impact, downtime, customer effect). Matching entries are not incidents; truncated rows never establish frequency; periods are absolute dates; no financial loss, downtime or customer impact is ever invented. `eval/verify_answer.py` checks that every cited id exists, that every number next to an id appears in that ledger entry, and flags uncited numbers.
