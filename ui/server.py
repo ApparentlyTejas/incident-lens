@@ -115,7 +115,7 @@ async def run_conversation(role, dataset, question, client=None, max_steps=12, h
     new, memory-less conversation, which breaks the second a real user (or a judge) asks a follow-up."""
     question = (question or "").strip()
     role = role if role in ROLE_PROMPT else "engineer"
-    dataset = dataset if dataset in ("bgl", "openstack") else "bgl"
+    dataset = dataset if dataset in ("bgl", "openstack", "zookeeper") else "bgl"
     if not question:
         yield ("error", {"message": "question must not be empty"}); return
     try:
@@ -185,7 +185,7 @@ async def ask_stream(request: Request):
         body = {}
     question = (body.get("question") or "").strip()
     role = body.get("role") if body.get("role") in ROLE_PROMPT else "engineer"
-    dataset = body.get("dataset") if body.get("dataset") in ("bgl", "openstack") else "bgl"
+    dataset = body.get("dataset") if body.get("dataset") in ("bgl", "openstack", "zookeeper") else "bgl"
     history = body.get("history")
 
     async def gen():

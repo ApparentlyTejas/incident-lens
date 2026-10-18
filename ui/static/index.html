@@ -300,6 +300,7 @@ button{font-family:var(--body)}
       <div class="ds-toggle">
         <button class="ds-btn active" data-dataset="bgl">BGL</button>
         <button class="ds-btn" data-dataset="openstack">OpenStack</button>
+        <button class="ds-btn" data-dataset="zookeeper">Zookeeper</button>
       </div>
     </div>
     <div class="presets" id="presets"></div>
@@ -359,7 +360,7 @@ const PRESETS = {
     lead:     ["Which problems recur most in BGL and which team owns them?",
                "Is the ciod job-launch failure getting worse week over week?"],
     manager:  ["Of the recurring problems in BGL, what deserves attention first right now?",
-               "Give me the whole-corpus picture across BGL and OpenStack."],
+               "Give me the whole-corpus picture across BGL, OpenStack and Zookeeper."],
   },
   openstack: {
     engineer: ["Find the InvalidDiskInfo failure in nova-compute and show what happened around the first hit.",
@@ -367,7 +368,15 @@ const PRESETS = {
     lead:     ["Which problems recur most in OpenStack and which team owns them?",
                "Is the nova-compute disk-info failure concentrated in one place or spread out?"],
     manager:  ["Of the recurring problems in OpenStack, what deserves attention first right now?",
-               "Give me the whole-corpus picture across BGL and OpenStack."],
+               "Give me the whole-corpus picture across BGL, OpenStack and Zookeeper."],
+  },
+  zookeeper: {
+    engineer: ["Find 'Send worker leaving thread' in Zookeeper and show what happened around the first hit.",
+               "Is that send-worker disconnect always the same thread?"],
+    lead:     ["Which problems recur most in Zookeeper and which team owns them?",
+               "Is the send-worker disconnect pattern concentrated on one thread or spread out?"],
+    manager:  ["Of the recurring problems in Zookeeper, what deserves attention first right now?",
+               "Give me the whole-corpus picture across BGL, OpenStack and Zookeeper."],
   },
 };
 
