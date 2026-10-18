@@ -33,7 +33,7 @@ Requires Python 3.10+, `curl`, `unzip`. The script starts SereneDB itself either
 git clone <this repo> && cd incident-lens
 ./scripts/setup.sh --sample      # seconds: 2,000-line Loghub samples, good for trying everything
 ./scripts/setup.sh               # full corpus: downloads BGL (709 MB) + OpenStack (58 MB) from Zenodo, parses, loads, indexes
-pytest -q --asyncio-mode=auto tests    # needs the --sample load (32 tests, numbers checked against plain SQL)
+pytest -q --asyncio-mode=auto tests    # needs the --sample load (39 tests, numbers checked against plain SQL)
 python tests/stdio_smoke.py            # spawns the server like Claude does and calls a tool
 ```
 
@@ -117,7 +117,7 @@ What has been executed, on the **full real corpus** (SereneDB 26.10.1; macOS arm
 |---|---|
 | Full load: 4,747,945 BGL rows + 207,812 OpenStack rows from the real Zenodo archives, parsed, loaded, indexed | **executed** - tables loaded in 3.6-9.2 s, inverted indexes built + refreshed in 5.9-9.6 s across repeated runs |
 | Schema, inverted index, phrase/terms/any/fuzzy search, BM25 + highlight, window functions, percentiles, `date_trunc`, read-only role | executed, working, at full scale |
-| All 13 tools + all 3 MCP resources (`schema://`, `ownership://`, `evidence://{id}`), 37 pytest tests against plain-SQL ground truth, real stdio MCP round-trip | executed, passing (against both the 2k samples and the full corpus) |
+| All 13 tools + all 3 MCP resources (`schema://`, `ownership://`, `evidence://{id}`), 39 pytest tests against plain-SQL ground truth, real stdio MCP round-trip | executed, passing (against both the 2k samples and the full corpus) |
 | **Clean checkout**, exactly as a judge would run it | **executed**: a copy of the exact current working tree, in a genuinely fresh Python venv - `pip install -r requirements.txt`, cold-parsing the sample logs from scratch, `scripts/load.py --sample`, the full pytest suite, `tests/stdio_smoke.py` - all passed with zero manual intervention. This is also what caught a real test-design flaw: one new test asserted a property that only holds on the full corpus, now fixed to skip (not silently pass) on small data |
 | Per-team database access (`scripts/setup_team_access.py`) | **executed**: provisioned real roles for all 9 real teams against the full corpus, connected as each one (not as admin), confirmed base-table and `ownership`-table denial plus exact row-level isolation for every single team - `tests/test_team_access.py` |
 | Worked investigations: BGL (`investigation/worked_investigation.md`) and OpenStack (`investigation/openstack_investigation.md`) | **both executed against the full corpus** - BGL: a recurring ciod job-launch failure pattern (1,024 nodes, 52,763 episodes); OpenStack: a nova-compute image-cache bug (8 occurrences, 8 separate episodes, 8 different VM instances - a deliberately different shape, to show the same methodology holds on both datasets). Both walk all three roles with real evidence ids; both checked clean with `eval/verify_answer.py` |
