@@ -27,6 +27,15 @@ def test_search_modes_agree_on_typo():
     fuzzy = T.search_logs("bgl", "paritty", mode="fuzzy", limit=1)["total_matches"]
     assert fuzzy == exact > 0
 
+def test_search_logs_rejects_a_null_byte_instead_of_crashing_with_a_raw_db_error():
+    # a NUL byte reaches psycopg as a raw DataError that the MCP layer reports with zero detail
+    # (deliberately - only our own ValueErrors get surfaced with a message) - so this has to be
+    # caught before the query, not after, or the model gets an opaque, non-actionable failure.
+    with pytest.raises(ValueError, match="NUL"):
+        T.search_logs("bgl", "parity\x00error")
+    with pytest.raises(ValueError, match="NUL"):
+        T.count_by("bgl", "level", query="parity\x00error")
+
 def test_search_logs_drops_redundant_ts_bound_but_keeps_narrow_one_correct():
     # whole-corpus (no from_ts/to_ts) search: the ts bound would be a no-op, and SereneDB's
     # inverted-index engine loses its fast top-k scoring path whenever ANY range filter is

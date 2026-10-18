@@ -39,6 +39,7 @@ def text_predicate(query, mode="terms", distance=1):
        fuzzy  - every term within `distance` edits (typos), Levenshtein"""
     q = (query or "").strip()
     if not q: raise ValueError("query must not be empty")
+    if "\x00" in q: raise ValueError("query must not contain a NUL (0x00) byte")
     toks = q.split()
     if mode == "phrase": return ["message @@ ts_phrase(%s)"], [q]
     if mode == "any":    return ["message @@ %s"], [q]
