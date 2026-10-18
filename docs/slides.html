@@ -34,7 +34,7 @@ p{margin:0}
   content:"";position:absolute;left:64px;top:0;bottom:0;width:1px;background:var(--margin);opacity:.55;
 }
 .slide::after{ /* running file header, printed on every page like a dossier */
-  content:"INCIDENT LENS — CASE FILE";position:absolute;top:26px;left:96px;
+  content:"INCIDENT LENS / CASE FILE";position:absolute;top:26px;left:96px;
   font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--ink-muted);opacity:.7;
 }
 .pageno{position:absolute;top:26px;right:40px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-muted);opacity:.7}
@@ -77,14 +77,13 @@ a{color:var(--verify)}
 
 <!-- 1: Problem & roles -->
 <section class="slide" id="s1">
-  <span class="pageno">EXHIBIT 01 / 12</span>
+  <span class="pageno">01 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">RE:</span><span class="lbl">National AI Hackathon 2026 · SchubKI · Making Sense of Logs</span></div>
+    <div class="filehead"><span class="lbl">National AI Hackathon 2026 · SchubKI · Making Sense of Logs</span></div>
     <h1 style="font-size:clamp(32px,5.2vw,54px);font-weight:700;margin-top:10px;line-height:1.08;font-style:normal">One corpus. Three roles.<br>Every answer has a receipt.</h1>
     <p style="max-width:640px;margin-top:20px;font-size:17px;color:var(--ink-muted);line-height:1.6">
       Just under 5 million real log lines from a supercomputer and a cloud platform. An engineer, a team lead, and a
-      manager each need a different answer from the same logs — and most AI tools over logs either dump raw text
-      back at you or confidently invent the parts they don't know.
+      manager each need a different answer from the same logs. Most AI tools over logs either dump raw text back at you or confidently invent the parts they don't know.
     </p>
     <div class="grid g3" style="margin-top:34px">
       <div class="exhibit" data-ex="ROLE A"><p class="stamp">Engineer</p>
@@ -92,16 +91,16 @@ a{color:var(--verify)}
       <div class="exhibit" data-ex="ROLE B"><p class="stamp">Team Lead</p>
         <p style="margin-top:12px;font-size:16px;line-height:1.5">Which problems recur, how often, and which team owns them?</p></div>
       <div class="exhibit" data-ex="ROLE C"><p class="stamp">Manager</p>
-        <p style="margin-top:12px;font-size:16px;line-height:1.5">Which observed problems deserve attention first — with no invented impact?</p></div>
+        <p style="margin-top:12px;font-size:16px;line-height:1.5">Which observed problems deserve attention first, with no invented impact?</p></div>
     </div>
   </div>
 </section>
 
 <!-- 2: Idea in one line -->
 <section class="slide" id="s2">
-  <span class="pageno">EXHIBIT 02 / 12</span>
+  <span class="pageno">02 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§1</span><span class="lbl">The idea</span></div>
+    <div class="filehead"><span class="no">01</span><span class="lbl">The idea</span></div>
     <h2 style="font-size:clamp(26px,4vw,40px);font-weight:700;margin-top:10px;line-height:1.2;max-width:820px">
       The database searches and calculates. Claude explains.
       <span style="color:var(--accent)">Every number traces to a query that actually ran.</span>
@@ -109,9 +108,9 @@ a{color:var(--verify)}
     <div class="grid g2" style="margin-top:38px;align-items:start">
       <div>
         <p style="font-size:16px;line-height:1.65;color:var(--ink-muted)">
-          Incident Lens is an MCP server — 13 parameterized tools over BGL and OpenStack logs in SereneDB.
+          Incident Lens is an MCP server: 13 parameterized tools over BGL and OpenStack logs in SereneDB.
           Claude never writes SQL; the server does all searching and counting, and writes every call to a
-          hash-chained evidence ledger before returning. Any Claude — yours, a judge's, anyone's — can connect
+          hash-chained evidence ledger before returning. Any Claude, yours, a judge's, anyone's, can connect
           and use it with their own account, from a terminal, Claude Desktop, or a web console built for this.
         </p>
       </div>
@@ -130,9 +129,9 @@ a{color:var(--verify)}
 
 <!-- 3: Architecture -->
 <section class="slide" id="s3">
-  <span class="pageno">EXHIBIT 03 / 12</span>
+  <span class="pageno">03 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§2</span><span class="lbl">Architecture</span></div>
+    <div class="filehead"><span class="no">02</span><span class="lbl">Architecture</span></div>
     <h2 style="font-size:clamp(22px,3.2vw,32px);font-weight:700;margin-top:10px">Claude sees only what the server returns</h2>
     <div style="margin-top:30px;overflow-x:auto">
       <svg viewBox="0 0 980 260" style="width:100%;min-width:640px;max-width:980px;height:auto" role="img" aria-label="Architecture diagram">
@@ -186,17 +185,17 @@ a{color:var(--verify)}
 
 <!-- 4: one issue, three lenses -->
 <section class="slide" id="s4">
-  <span class="pageno">EXHIBIT 04 / 12</span>
+  <span class="pageno">04 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§3</span><span class="lbl">One real issue · three lenses · BGL</span></div>
-    <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">ciod job-launch failures — not a textbook error, a real discovery</h2>
-    <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:720px">A parallel job's executable path is missing or unreadable — found, traced, and quantified by the same three tool paths each role would actually use.</p>
+    <div class="filehead"><span class="no">03</span><span class="lbl">One real issue · three lenses · BGL</span></div>
+    <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">ciod job-launch failures: not a textbook error, a real discovery</h2>
+    <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:720px">A parallel job's executable path is missing or unreadable. Found, traced, and quantified by the same three tool paths each role would actually use.</p>
 
     <div class="grid g3" style="margin-top:24px">
       <div class="exhibit" data-ex="A"><p class="stamp">Engineer</p>
         <p style="margin-top:10px;font-size:15px;line-height:1.55">
           First hit: job <span class="mono">65641</span> ("raptor") fails on <b>1,024 distinct nodes</b> within
-          milliseconds of each other — not one bad node.
+          milliseconds of each other. Not one bad node.
         </p>
         <p class="mono" style="font-size:12px;color:var(--ink-muted);margin-top:10px">search_logs → nearby_events → count_by</p></div>
       <div class="exhibit" data-ex="B"><p class="stamp">Team Lead</p>
@@ -216,7 +215,7 @@ a{color:var(--verify)}
       <p class="stamp">Blind-LLM check</p>
       <p style="margin-top:10px;font-size:15px;line-height:1.55">
         Asked the identical question, a fresh Claude with <b>no tools and no data access</b> confidently named
-        <b>memory/ECC errors on KERNEL</b> as the top cause, with invented frequency numbers — then admitted,
+        <b>memory/ECC errors on KERNEL</b> as the top cause, with invented frequency numbers, then admitted,
         unprompted, that every specific claim was "a pure guess." Wrong component, wrong category, wrong everything
         except the fluency.
       </p>
@@ -226,22 +225,22 @@ a{color:var(--verify)}
 
 <!-- 5: second dataset, same rigor -->
 <section class="slide" id="s5">
-  <span class="pageno">EXHIBIT 05 / 12</span>
+  <span class="pageno">05 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§4</span><span class="lbl">A second, deliberately different shape · OpenStack</span></div>
+    <div class="filehead"><span class="no">04</span><span class="lbl">A second, deliberately different shape · OpenStack</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">The methodology isn't a one-dataset trick</h2>
     <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:760px">
       A nova-compute periodic task (image-cache verification) throws and aborts <b>entirely</b> whenever it hits one
-      already-deleted instance's disk — a real code-level gap, not an environmental blip.
+      already-deleted instance's disk. A real code-level gap, not an environmental blip.
     </p>
     <div class="grid g4" style="margin-top:24px">
       <div class="exhibit" data-ex="E1"><p class="stat">8</p><p class="stat-label">occurrences, over ~26 hours</p></div>
-      <div class="exhibit" data-ex="E2"><p class="stat">8</p><p class="stat-label">separate episodes — entries = episodes, the opposite shape from the BGL burst above</p></div>
-      <div class="exhibit" data-ex="E3"><p class="stat">8</p><p class="stat-label">different VM instances — never the same one twice</p></div>
+      <div class="exhibit" data-ex="E2"><p class="stat">8</p><p class="stat-label">separate episodes (entries = episodes, the opposite shape from the BGL burst above)</p></div>
+      <div class="exhibit" data-ex="E3"><p class="stat">8</p><p class="stat-label">different VM instances, never the same one twice</p></div>
       <div class="exhibit" data-ex="E4"><p class="stat">#1</p><p class="stat-label">most frequent ERROR-level template in the whole OpenStack corpus</p></div>
     </div>
     <p style="margin-top:18px;font-size:15px;color:var(--ink-muted);max-width:760px">
-      Same tool-calling loop, same four-block answer contract, same evidence ledger — run against a completely
+      Same tool-calling loop, same four-block answer contract, same evidence ledger, run against a completely
       different system with a completely different failure shape. <span class="mono">investigation/openstack_investigation.md</span>,
       checked clean against the citation checker.
     </p>
@@ -250,49 +249,49 @@ a{color:var(--verify)}
 
 <!-- 6: concentration vs frequency -->
 <section class="slide" id="s6">
-  <span class="pageno">EXHIBIT 06 / 12</span>
+  <span class="pageno">06 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§5</span><span class="lbl">Novelty · a tool the hackathon didn't ask for</span></div>
+    <div class="filehead"><span class="no">05</span><span class="lbl">Novelty · a tool the hackathon didn't ask for</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">What a frequency ranking hides, on purpose</h2>
     <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:760px">
       <span class="mono">concentration_anomalies</span> ranks failures by how <b>confined</b> they are to one
-      node or service — not how often they fire. The two rankings disagree, and the disagreement is the finding.
+      node or service, not how often they fire. The two rankings disagree, and the disagreement is the finding.
     </p>
     <div class="grid g2" style="margin-top:24px">
       <div class="exhibit" data-ex="FINDING 1"><p class="stamp">Buried by frequency</p>
         <p style="margin-top:10px;font-size:15px;line-height:1.6">
-          <span class="mono">MACHINE CHECK DCR read timeout</span> — <b>14,481 entries, confined to exactly 1 node</b>
+          <span class="mono">MACHINE CHECK DCR read timeout</span>: <b>14,481 entries, confined to exactly 1 node</b>
           out of the whole system. Ranked <b>#33</b> by raw count: invisible past the default view.
         </p></div>
       <div class="exhibit" data-ex="FINDING 2"><p class="stamp">Hidden in plain sight</p>
         <p style="margin-top:10px;font-size:15px;line-height:1.6">
-          <span class="mono">idoproxydb hit ASSERT condition</span> — <b>84,168 entries, 1 node</b>. The single
+          <span class="mono">idoproxydb hit ASSERT condition</span>: <b>84,168 entries, 1 node</b>. The single
           most concentrated failure in the whole corpus; a human scrolling a frequency list would never isolate it this cleanly.
         </p></div>
     </div>
-    <p style="margin-top:18px;font-size:14px;color:var(--ink-muted)">A high ratio says "go check that one node's hardware first." A low ratio says "this is probably systemic." Both are exact counts — no ML, no guessing.</p>
+    <p style="margin-top:18px;font-size:14px;color:var(--ink-muted)">A high ratio says "go check that one node's hardware first." A low ratio says "this is probably systemic." Both are exact counts. No ML, no guessing.</p>
   </div>
 </section>
 
 <!-- 7: scale -->
 <section class="slide" id="s7">
-  <span class="pageno">EXHIBIT 07 / 12</span>
+  <span class="pageno">07 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§6</span><span class="lbl">SereneDB at scale</span></div>
+    <div class="filehead"><span class="no">06</span><span class="lbl">SereneDB at scale</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,34px);font-weight:700;margin-top:8px">4,955,757 rows. Every number below actually scanned them.</h2>
     <div style="margin-top:22px" id="chart7"></div>
     <div class="grid g2" style="margin-top:18px;gap:14px">
       <div class="exhibit" data-ex="LOAD TIME">
         <p style="font-size:15px;line-height:1.55">
           Load + index the full corpus: <b>3.4–9.2s</b> tables, <b>5.9–9.6s</b> inverted indexes, across repeated runs
-          on a laptop — no pre-aggregation, no caching tricks.
+          on a laptop. No pre-aggregation, no caching tricks.
         </p>
       </div>
       <div class="exhibit" data-ex="ROOT CAUSE">
         <p style="font-size:15px;line-height:1.55">
           The one outlier we found (<span class="mono">search_logs</span>, relevance mode) was <b>root-caused and
           fixed</b>, not hidden: a redundant time filter was silently disabling the index's fast top-k scoring path.
-          Dropping the provably-redundant filter turned a <b>~1.5s</b> query into <b>~150–215ms</b> — same result,
+          Dropping the provably-redundant filter turned a <b>~1.5s</b> query into <b>~150-215ms</b> - same result,
           9x faster.
         </p>
       </div>
@@ -302,21 +301,21 @@ a{color:var(--verify)}
 
 <!-- 8: ledger & contract -->
 <section class="slide" id="s8">
-  <span class="pageno">EXHIBIT 08 / 12</span>
+  <span class="pageno">08 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§7</span><span class="lbl">The evidence ledger &amp; answer contract</span></div>
-    <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">Four blocks. Every number carries a receipt — and the receipt book is tamper-evident.</h2>
+    <div class="filehead"><span class="no">07</span><span class="lbl">The evidence ledger &amp; answer contract</span></div>
+    <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">Four blocks. Every number carries a receipt, and the receipt book is tamper-evident.</h2>
     <div class="grid g2" style="margin-top:22px;gap:14px">
-      <div class="exhibit" data-ex="BLOCK 1"><p class="stamp">1 · Observed</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Measured facts only — scope, period, filters, <span class="mono">[E-id]</span>. Never <span class="mono">len(rows)</span> as a frequency.</p></div>
+      <div class="exhibit" data-ex="BLOCK 1"><p class="stamp">1 · Observed</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Measured facts only: scope, period, filters, <span class="mono">[E-id]</span>. Never <span class="mono">len(rows)</span> as a frequency.</p></div>
       <div class="exhibit" data-ex="BLOCK 2"><p class="stamp">2 · Hypotheses</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Possible explanations, explicitly labelled. Never stated as fact.</p></div>
       <div class="exhibit" data-ex="BLOCK 3"><p class="stamp">3 · Recommended checks</p><p style="margin-top:10px;font-size:15px;line-height:1.55">Specific, ordered, each tied to an evidence id.</p></div>
-      <div class="exhibit" data-ex="BLOCK 4"><p class="stamp">4 · Unknown</p><p style="margin-top:10px;font-size:15px;line-height:1.55">What the logs don't establish — cause, downtime, cost, customer impact. Never invented.</p></div>
+      <div class="exhibit" data-ex="BLOCK 4"><p class="stamp">4 · Unknown</p><p style="margin-top:10px;font-size:15px;line-height:1.55">What the logs don't establish: cause, downtime, cost, customer impact. Never invented.</p></div>
     </div>
     <div class="exhibit" data-ex="INTEGRITY CHECK" style="margin-top:16px;border-color:var(--verify)">
       <p class="stamp verify">Tamper-evident, not just append-only</p>
       <p style="margin-top:10px;font-size:15px;line-height:1.6">
         Every ledger entry's hash is <span class="mono">sha256(previous entry's hash + this entry's own content)</span>.
-        Hand-edit one stored number with a raw SQL <span class="mono">UPDATE</span> — bypassing every tool — and
+        Hand-edit one stored number with a raw SQL <span class="mono">UPDATE</span>, bypassing every tool, and
         <span class="mono">verify_ledger_integrity</span> catches it and names the exact entry. Proven live in the
         web console's "Simulate Tamper" button, against a scratch copy that never touches the real ledger.
       </p>
@@ -326,24 +325,24 @@ a{color:var(--verify)}
 
 <!-- 9: web console -->
 <section class="slide" id="s9">
-  <span class="pageno">EXHIBIT 09 / 12</span>
+  <span class="pageno">09 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§8</span><span class="lbl">A browser you can watch it think in</span></div>
+    <div class="filehead"><span class="no">08</span><span class="lbl">A browser you can watch it think in</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">The same 13 tools, with the evidence ledger made visible</h2>
     <div class="grid g2" style="margin-top:24px">
       <div class="exhibit" data-ex="UI">
         <p style="font-size:15px;line-height:1.6">
-          Chat with Claude through the browser — same role prompts, same tools, called through the real Anthropic
+          Chat with Claude through the browser: same role prompts, same tools, called through the real Anthropic
           API. Every tool call lands on the right as it happens: the exact SQL, the exact count, the ledger hash,
           chained visibly to the one before it. Click any evidence id to replay it.
         </p>
       </div>
       <div class="exhibit" data-ex="TEST COVERAGE">
         <p style="font-size:15px;line-height:1.6">
-          Not a second implementation — it's a thin UI over the exact same server. Tested over the real HTTP
+          Not a second implementation. It's a thin UI over the exact same server. Tested over the real HTTP
           surface (overview, ledger status, tamper demo, evidence replay, path-traversal blocked), and the chat
           loop itself is driven end-to-end by a fake-client test harness, so the only genuinely untested piece is
-          the literal network call to Anthropic — which needs a real key to exercise once, same as any MCP client.
+          the literal network call to Anthropic, which needs a real key to exercise once, same as any MCP client.
         </p>
       </div>
     </div>
@@ -352,28 +351,28 @@ a{color:var(--verify)}
 
 <!-- 10: row-level security -->
 <section class="slide" id="s10">
-  <span class="pageno">EXHIBIT 10 / 12</span>
+  <span class="pageno">10 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§9</span><span class="lbl">Bonus · database row-level security</span></div>
+    <div class="filehead"><span class="no">09</span><span class="lbl">Bonus · database row-level security</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">Per-team access, enforced by the database, not application code</h2>
     <p style="margin-top:8px;font-size:15px;color:var(--ink-muted);max-width:760px">
-      SereneDB has no native <span class="mono">ROW LEVEL SECURITY</span> / <span class="mono">CREATE POLICY</span> —
+      SereneDB has no native <span class="mono">ROW LEVEL SECURITY</span> / <span class="mono">CREATE POLICY</span>.
       checked directly, not assumed. Built the same real guarantee from primitives it does support: one filtered
       view per team, straight from the ownership table, with that team's base-table grants revoked.
     </p>
     <div class="grid g3" style="margin-top:22px">
       <div class="exhibit" data-ex="F1"><p class="stat">9</p><p class="stat-label">real teams provisioned, straight from the ownership table</p></div>
       <div class="exhibit" data-ex="F2"><p class="stat">0</p><p class="stat-label">rows any team's role can see outside its own component/service</p></div>
-      <div class="exhibit" data-ex="F3"><p class="stat">✓</p><p class="stat-label">verified by connecting as each restricted role — never as admin</p></div>
+      <div class="exhibit" data-ex="F3"><p class="stat">✓</p><p class="stat-label">verified by connecting as each restricted role, never as admin</p></div>
     </div>
   </div>
 </section>
 
 <!-- 11: scoreboard -->
 <section class="slide" id="s11">
-  <span class="pageno">EXHIBIT 11 / 12</span>
+  <span class="pageno">11 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§10</span><span class="lbl">Scoreboard</span></div>
+    <div class="filehead"><span class="no">10</span><span class="lbl">Scoreboard</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">What's actually been run, not just written</h2>
     <div class="grid g4" style="margin-top:26px">
       <div class="exhibit" data-ex="01"><p class="stat">13</p><p class="stat-label">MCP tools, all wired and tested</p></div>
@@ -390,9 +389,9 @@ a{color:var(--verify)}
 
 <!-- 12: limits & next -->
 <section class="slide" id="s12">
-  <span class="pageno">EXHIBIT 12 / 12</span>
+  <span class="pageno">12 / 12</span>
   <div class="slide-inner">
-    <div class="filehead"><span class="no">§11</span><span class="lbl">Limits &amp; what's next</span></div>
+    <div class="filehead"><span class="no">11</span><span class="lbl">Limits &amp; what's next</span></div>
     <h2 style="font-size:clamp(22px,3.4vw,32px);font-weight:700;margin-top:8px">Honest about what the logs can't tell you</h2>
     <div class="grid g2" style="margin-top:24px">
       <div class="exhibit" data-ex="EXCLUDED" style="border-color:var(--accent)">
@@ -404,7 +403,7 @@ a{color:var(--verify)}
     </div>
     <hr class="ruledbl" style="margin:34px 0 22px">
     <p class="mono" style="font-size:14px;color:var(--ink-muted)">github.com/ApparentlyTejas/incident-lens</p>
-    <p style="margin-top:8px;font-size:16px;font-family:var(--disp);font-weight:600">One setup command. Clean checkout to first answered question in minutes — verified, not assumed.</p>
+    <p style="margin-top:8px;font-size:16px;font-family:var(--disp);font-weight:600">One setup command. Clean checkout to first answered question in minutes, verified, not assumed.</p>
   </div>
 </section>
 
