@@ -3,7 +3,7 @@ Ground truth is computed with plain SQL on the base tables (no index, no tool co
 import json, sys, pathlib
 import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from server import tools as T, db, config
+from server import tools as T, db, config, common
 from server.app import mcp
 
 def gt(sql, params=None): return db.scalar(sql, params)
@@ -286,3 +286,150 @@ async def test_mcp_resources_work_and_evidence_resource_errors_on_unknown_id():
     from mcp.server.mcpserver.exceptions import ResourceError
     with pytest.raises(ResourceError, match="unknown evidence_id"):
         await mcp.read_resource("evidence://E-9999999")
+
+# ---------------------------------------------------------------- additional coverage: input validation
+
+def test_dataset_cfg_rejects_unknown_dataset():
+    # every tool's first line is dataset_cfg(dataset) - a model passing a typo'd or invented dataset
+    # name must get a readable, actionable error, not an opaque KeyError deep in a query
+    with pytest.raises(ValueError, match="dataset must be one of"):
+        T.corpus_overview("mysql")
+    with pytest.raises(ValueError, match="dataset must be one of"):
+        T.search_logs("bgl ", "kernel")  # trailing space is not normalised away - exact match required
+
+def test_parse_ts_rejects_malformed_timestamps_with_a_readable_error():
+    # a model might pass a non-ISO date (e.g. '06/03/2005') - this must surface as our own
+    # readable ValueError (caught by app._call -> ToolError), not a raw dateutil/fromisoformat traceback
+    with pytest.raises(ValueError, match="from_ts must be ISO date/time"):
+        T.search_logs("bgl", "kernel", from_ts="06/03/2005")
+    with pytest.raises(ValueError, match="to_ts must be ISO date/time"):
+        T.search_logs("bgl", "kernel", to_ts="not-a-date")
+
+def test_text_predicate_rejects_unknown_mode_directly():
+    # app.py's MODE Literal already stops a real MCP client from sending a bad mode, but
+    # common.text_predicate is the shared primitive and must guard itself too (defence in depth,
+    # and it's exercised directly here since no tool-level path can reach this branch anymore)
+    with pytest.raises(ValueError, match="mode must be one of"):
+        common.text_predicate("kernel", mode="regex")
+
+# ---------------------------------------------------------------- additional coverage: column filters actually filter
+
+def test_component_filter_matches_plain_sql():
+    r = T.count_by("bgl", "level", component="KERNEL")
+    assert r["total_matches"] == gt("select count(*) from bgl_logs where component = 'KERNEL'")
+
+def test_bgl_node_and_alert_filters_match_plain_sql():
+    r = T.count_by("bgl", "level", node="R30-M0-N9-C:J16-U01")
+    assert r["total_matches"] == gt("select count(*) from bgl_logs where node = 'R30-M0-N9-C:J16-U01'")
+    r2 = T.count_by("bgl", "level", alert="KERNDTLB")
+    assert r2["total_matches"] == gt("select count(*) from bgl_logs where alert = 'KERNDTLB'")
+
+def test_openstack_service_filter_matches_plain_sql():
+    r = T.count_by("openstack", "level", service="nova-api")
+    assert r["total_matches"] == gt("select count(*) from openstack_logs where service = 'nova-api'")
+
+def test_http_status_filter_is_plumbed_in_common_even_though_no_tool_exposes_it_yet():
+    # common.column_filters/where accept an http_status kwarg (openstack-only, like `service`),
+    # but no current tool wires a user-facing http_status filter through to it (latency_summary
+    # only *groups by* http_status via its own raw SQL). Test the shared primitive directly so
+    # this building block is verified even though nothing in tools.py calls it yet.
+    cfg = config.DATASETS["openstack"]
+    clauses, params = common.column_filters(cfg, http_status=500)
+    assert clauses == ["http_status = %s"] and params == [500]
+    with pytest.raises(ValueError, match="only exists for dataset openstack"):
+        common.column_filters(config.DATASETS["bgl"], http_status=500)
+
+def test_count_by_text_query_uses_subquery_path_not_the_index_and_matches_plain_sql():
+    # count_by (unlike search_logs) filters text via `id IN (SELECT id FROM <index> WHERE ...)`
+    # on the base table rather than querying the index directly (via_index=False) - this is a
+    # different code path from search_logs's and had no coverage with a real, non-empty query
+    r = T.count_by("bgl", "level", query="parity error", mode="phrase")
+    assert r["total_matches"] == gt("select count(*) from bgl_logs where message like '%parity error%' and message not like '%parity errors%'")
+
+# ---------------------------------------------------------------- additional coverage: less-common branches
+
+def test_search_logs_falls_back_to_plain_order_when_the_ranked_query_fails(monkeypatch):
+    # search_logs wraps its ranked/highlighted query in a try/except: if BM25/highlight is
+    # unavailable for a given predicate shape it must still return correct rows via a plain
+    # ORDER BY ts, id query, not blow up. Simulate that failure directly (real SereneDB didn't
+    # happen to fail on any predicate shape the sample data produces) rather than skip it.
+    calls = {"n": 0}
+    orig_run = common.Tracer.run
+    def flaky_run(self, sql, params=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("simulated: ts_highlight/BM25 unavailable for this predicate shape")
+        return orig_run(self, sql, params)
+    monkeypatch.setattr(common.Tracer, "run", flaky_run)
+    r = T.search_logs("bgl", "parity error", mode="phrase", limit=3)
+    assert calls["n"] >= 2
+    assert r["total_matches"] == gt("select count(*) from bgl_logs where message like '%parity error%' and message not like '%parity errors%'")
+    assert r["returned"] == 3
+    assert all("snippet" in row for row in r["rows"])
+
+def test_nearby_events_same_service_scope_on_openstack():
+    # same_request and auto are already covered; same_service is a distinct branch
+    # (conds.append("service = %s")) that was never exercised
+    hit = T.search_logs("openstack", "nova-api", mode="any", limit=1)["rows"][0]
+    r = T.nearby_events("openstack", hit["id"], 3600, 3600, scope="same_service")
+    assert r["filters"]["scope"] == "same_service"
+    assert all(e["service"] == hit["service"] for e in r["events"])
+
+def test_trend_group_by_matches_plain_sql_and_sums_to_total():
+    r = T.trend("bgl", "week", severity="severe", group_by="component", top_groups=3)
+    assert r["series"]["group_by"] == "component"
+    assert len(r["series"]["groups"]) <= 3
+    for name in r["series"]["groups"]:
+        series_sum = sum(x["entries"] for x in r["series"]["rows"] if x["name"] == name)
+        assert series_sum == gt("select count(*) from bgl_logs where level in ('FATAL','FAILURE','SEVERE','ERROR') and component = %s", [name])
+
+def test_trend_group_by_with_zero_matching_groups_returns_an_empty_series_not_an_error():
+    # when the scope has no matching rows at all, the top-groups query returns no names, and the
+    # per-bucket-per-group query must be skipped entirely (an empty IN (...) is invalid SQL) -
+    # this is a distinct branch from the "groups found" path above
+    r = T.trend("bgl", "week", group_by="component", component="NOPE_DOES_NOT_EXIST_IN_SAMPLE")
+    assert r["total_matches"] == 0
+    assert r["series"] == {"group_by": "component", "groups": [], "rows": []}
+
+# ---------------------------------------------------------------- additional coverage: app.py tool wrappers end-to-end
+
+@pytest.mark.asyncio
+async def test_app_wraps_every_remaining_tool_through_the_real_mcp_call_path():
+    # every tool above is tested by calling server.tools functions directly - that verifies the
+    # logic, but server/app.py's thin `_call(T.xxx, ...)` wrapper line for each tool was never
+    # itself invoked by a test (only count_by was, via the error-path test above). Route a real
+    # call through mcp.call_tool for each one, the same way an actual MCP client would.
+    def body(res):
+        assert res.is_error is False
+        return json.loads(res.content[0].text)
+
+    search = body(await mcp.call_tool("search_logs", {"dataset": "bgl", "query": "parity error", "mode": "phrase", "limit": 1}))
+    log_id = search["rows"][0]["id"]
+    evidence_id = search["evidence_id"]
+
+    nearby = body(await mcp.call_tool("nearby_events", {"dataset": "bgl", "log_id": log_id, "before_seconds": 60, "after_seconds": 60}))
+    assert any(e["is_anchor"] for e in nearby["events"])
+
+    trend = body(await mcp.call_tool("trend", {"dataset": "bgl", "bucket": "week"}))
+    assert trend["tool"] == "trend"
+
+    episodes = body(await mcp.call_tool("episodes", {"dataset": "bgl"}))
+    assert episodes["tool"] == "episodes"
+
+    recurring = body(await mcp.call_tool("recurring_patterns", {"dataset": "bgl", "limit": 5}))
+    assert recurring["tool"] == "recurring_patterns"
+
+    conc = body(await mcp.call_tool("concentration_anomalies", {"dataset": "bgl", "min_entries": 1, "limit": 5}))
+    assert conc["tool"] == "concentration_anomalies"
+
+    latency = body(await mcp.call_tool("latency_summary", {}))
+    assert latency["tool"] == "latency_summary"
+
+    ownership = body(await mcp.call_tool("team_ownership", {}))
+    assert ownership["tool"] == "team_ownership"
+
+    evidence = body(await mcp.call_tool("get_evidence", {"evidence_id": evidence_id}))
+    assert evidence["entry"]["tool"] == "search_logs"
+
+    integrity = body(await mcp.call_tool("verify_ledger_integrity", {}))
+    assert integrity["ok"] is True
