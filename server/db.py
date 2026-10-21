@@ -45,7 +45,7 @@ def run(sql, params=None):
         if c in COUNT_COLS and isinstance(v, str) and v.lstrip("-").isdigit(): return int(v)
         if c in COUNT_COLS and isinstance(v, float) and v.is_integer(): return int(v)
         return v
-    return cols, [{c: fix(c, v) for c, v in zip(cols, r)} for r in cur.fetchall()]
+    return cols, [{c: fix(c, v) for c, v in zip(cols, r, strict=False)} for r in cur.fetchall()]
 
 def scalar(sql, params=None):
     _, rows = run(sql, params)

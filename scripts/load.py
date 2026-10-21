@@ -16,12 +16,12 @@ def run_file(conn, path, subs):
     sql = (ROOT / "sql" / path).read_text()
     for k, v in subs.items():
         sql = sql.replace("{{%s}}" % k, v)
-    for stmt in [s.strip() for s in sql.split(";") if s.strip() and not all(l.strip().startswith("--") or not l.strip() for l in s.splitlines())]:
+    for stmt in [s.strip() for s in sql.split(";") if s.strip() and not all(ln.strip().startswith("--") or not ln.strip() for ln in s.splitlines())]:
         try:
             conn.execute(stmt)
         except Exception as e:
             if "readonly_role" in path and "already exists" in str(e): continue
-            raise SystemExit(f"FAILED in {path}:\n{stmt}\n-> {e}")
+            raise SystemExit(f"FAILED in {path}:\n{stmt}\n-> {e}") from e
 
 def main():
     ap = argparse.ArgumentParser()
@@ -56,8 +56,8 @@ def main():
         # to execute as an EMPTY statement) any pure-comment chunk that merely mentioned those words
         for s in (ROOT / "data/sample/fixtures.sql").read_text().split(";"):
             s = s.strip()
-            if not s or all(l.strip().startswith("--") or not l.strip() for l in s.splitlines()): continue
-            conn.execute("\n".join(l for l in s.splitlines() if not l.strip().startswith("--")))
+            if not s or all(ln.strip().startswith("--") or not ln.strip() for ln in s.splitlines()): continue
+            conn.execute("\n".join(ln for ln in s.splitlines() if not ln.strip().startswith("--")))
     run_file(conn, "readonly_role.sql", subs)
     for t_ in ("bgl_logs", "openstack_logs", "zookeeper_logs", "ownership"):
         print(f"{t_}: {int(conn.execute(f'select count(*) from {t_}').fetchone()[0])} rows")

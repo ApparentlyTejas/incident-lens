@@ -7,7 +7,7 @@ tool-selection and evidence-citation metrics, and write eval/results.md.
   python eval/run.py --dry-run        # no API calls: just resolves params.yaml into each
                                        # question and prints the expected first tool (CI-safe)
 """
-import argparse, asyncio, json, os, sys, pathlib, re, datetime as dt
+import argparse, asyncio, json, os, sys, pathlib, datetime as dt
 import yaml
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "eval"))

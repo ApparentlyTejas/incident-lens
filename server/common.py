@@ -12,10 +12,10 @@ def parse_ts(v, name):
     if v in (None, ""): return None
     try:
         return dt.datetime.fromisoformat(str(v).replace("T", " ").rstrip("Z"))
-    except ValueError:
-        raise ValueError(f"{name} must be ISO date/time like '2005-06-03' or '2005-06-03 15:42:50', got {v!r}")
+    except ValueError as e:
+        raise ValueError(f"{name} must be ISO date/time like '2005-06-03' or '2005-06-03 15:42:50', got {v!r}") from e
 
-_span_cache = {}
+_span_cache: dict[str, tuple[dt.datetime, dt.datetime]] = {}
 def dataset_span(dataset):
     if dataset not in _span_cache:
         cfg = config.DATASETS[dataset]
@@ -52,7 +52,7 @@ def text_predicate(query, mode="terms", distance=1):
 def column_filters(cfg, levels=None, severity="all", component=None, node=None, service=None, alert=None, http_status=None, prefix=""):
     """Equality/range filters on plain columns (same names in the table and the index)."""
     clauses, params = [], []
-    lv = [l.upper() for l in levels] if levels else (cfg["severe_levels"] if severity == "severe" else None)
+    lv = [lvl.upper() for lvl in levels] if levels else (cfg["severe_levels"] if severity == "severe" else None)
     if lv:
         clauses.append(f"{prefix}level IN ({','.join(['%s'] * len(lv))})"); params += lv
     for col, val in (("component", component), ("node", node), ("service", service), ("alert", alert)):

@@ -1,5 +1,7 @@
 # Incident Lens
 
+![CI](https://github.com/ApparentlyTejas/incident-lens/actions/workflows/ci.yml/badge.svg)
+
 **An MCP server that gives Claude role-aware, evidence-backed tools over the BGL, OpenStack and Zookeeper logs in SereneDB.**
 The database searches and calculates; Claude explains; every number traces to a query that actually ran - and a tamper-evident ledger can prove it after the fact, not just assert it.
 
@@ -42,6 +44,19 @@ python3 tests/stdio_smoke.py           # spawns the server like Claude does and 
 `setup.sh` = start SereneDB → download (`curl -L ...?download=1`) → `prep/parse_*.py` (raw log → Parquet) → `scripts/load.py` (`sql/schema.sql`, `ownership.sql`, `indexes.sql`, `readonly_role.sql`; prints load and index-build timings).
 
 Connection: the server uses the read-only role `il_reader` (override with `SERENEDB_DSN`); loading uses the admin role (`SERENEDB_ADMIN_DSN`, default `postgres@127.0.0.1:7890`). SereneDB speaks the Postgres wire protocol, so `psql -h 127.0.0.1 -p 7890 -U postgres` works too.
+
+## CI, lint, type-check, coverage
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push/PR to `main`: it stands up SereneDB on the `ubuntu-latest` runner (Linux x86_64, so `start_serenedb.sh` takes the native-binary path, no Docker in CI), loads the `--sample` corpus, then runs lint, type-check, the full test suite with coverage, and the stdio smoke test - the same four checks below, in the same order, that you can run locally:
+
+```bash
+ruff check .                                  # lint - rules + ignores explained in pyproject.toml
+mypy server                                   # type-check the MCP server package itself
+pytest -q --asyncio-mode=auto --cov=server --cov-report=term-missing --cov-report=xml --cov-report=html tests
+python3 tests/stdio_smoke.py
+```
+
+`--cov=server` only (not `cli`/`ui`/`eval`/`prep`/`scripts`, which are demo/tooling, not the shipped package); current coverage is ~93%. CI uploads `coverage.xml` + `htmlcov/` as a workflow artifact - no third-party coverage service wired in. Lint/type-check scope is deliberately narrow: `ruff` ignores a handful of pycodestyle rules (`E501`/`E701`/`E702`/`E402`/`E401`, see `pyproject.toml` for why - this codebase's dense one-liner/combined-import style is intentional, not an oversight) and `mypy` only checks `server/`, the package Claude actually imports.
 
 ## Connect Claude
 

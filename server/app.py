@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Optional
 from pydantic import Field
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError, ResourceError
-from . import tools as T, ledger, config, prompts, db
+from . import tools as T, ledger, prompts, db
 
 def _call(fn, *a, **kw):
     """Run a tool function, turning our deliberate input-validation ValueErrors into ToolError.

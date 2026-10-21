@@ -6,7 +6,7 @@ actually queried, whether results stay useful" rather than a synthetic microbenc
 
 Usage: python eval/benchmark.py [--n 20]
 """
-import argparse, json, statistics as st, sys, pathlib, time
+import argparse, statistics as st, sys, pathlib, time
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from server import tools as T, db

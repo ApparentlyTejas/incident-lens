@@ -3,7 +3,7 @@ Ground truth is computed with plain SQL on the base tables (no index, no tool co
 import json, sys, pathlib
 import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from server import tools as T, db, ledger, config
+from server import tools as T, db, config
 from server.app import mcp
 
 def gt(sql, params=None): return db.scalar(sql, params)
@@ -245,7 +245,9 @@ def test_zookeeper_team_ownership_covers_every_real_component():
     assert unmapped == 0
 
 def test_database_user_is_read_only():
-    with pytest.raises(Exception): db.run("delete from bgl_logs")
+    # psycopg raises different exception subclasses for a permission-denied write
+    # depending on the server/driver version, so the broad catch here is intentional.
+    with pytest.raises(Exception): db.run("delete from bgl_logs")  # noqa: B017
 
 @pytest.mark.asyncio
 async def test_mcp_surface():

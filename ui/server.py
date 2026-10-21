@@ -141,7 +141,7 @@ async def run_conversation(role, dataset, question, client=None, max_steps=12, h
     msgs = history + [{"role": "user", "content": question}]
     yield ("start", {"role": role, "dataset": dataset, "question": question})
     try:
-        for step in range(max_steps):
+        for _step in range(max_steps):
             r = await asyncio.to_thread(client.messages.create, model=MODEL, max_tokens=4000,
                                          system=system, tools=tool_defs, messages=msgs)
             msgs.append({"role": "assistant", "content": r.content})

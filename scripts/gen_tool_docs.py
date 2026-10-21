@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate docs/TOOLS.md from the live MCP tool definitions so the README never drifts from the code."""
-import asyncio, sys, pathlib, json
+import asyncio, sys, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent; sys.path.insert(0, str(ROOT))
 from server.app import mcp
 async def main():

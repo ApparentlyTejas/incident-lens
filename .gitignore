@@ -19,5 +19,10 @@ eval/results.md
 
 .DS_Store
 
+# coverage output (generated locally and in CI; CI uploads it as a workflow artifact)
+.coverage
+coverage.xml
+htmlcov/
+
 # local demo recording footage (not part of the submission repo)
 demo-recording/

@@ -70,7 +70,7 @@ def main(src, out, batch=200_000):
             if r is None:
                 bad += 1; continue
             n += 1
-            for k, v in zip(SCHEMA.names, (n, *r)):
+            for k, v in zip(SCHEMA.names, (n, *r), strict=False):
                 cols[k].append(v)
             if n % batch == 0: flush()
     flush(); w.close()

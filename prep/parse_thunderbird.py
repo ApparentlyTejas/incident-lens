@@ -64,7 +64,7 @@ def parse(line):
     comp = m.group(1) if m else "(unknown)"
     # strip a trailing [pid] / (module) decoration off the component so e.g. crond[2915] and
     # crond[2916] collapse to the same component, not a distinct one per process id
-    comp = re.split(r"[\[(]", comp, 1)[0] or "(unknown)"
+    comp = re.split(r"[\[(]", comp, maxsplit=1)[0] or "(unknown)"
     colon = tail.find(": ")
     msg = tail[colon + 2:] if colon != -1 else tail
     if not msg:
@@ -90,7 +90,7 @@ def main():
             if r is None:
                 bad += 1; continue
             n += 1
-            for k, v in zip(SCHEMA.names, (n, *r)):
+            for k, v in zip(SCHEMA.names, (n, *r), strict=False):
                 cols[k].append(v)
             if n % a.batch == 0: flush()
             if a.limit and n >= a.limit: break

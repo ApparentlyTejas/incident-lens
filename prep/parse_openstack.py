@@ -60,7 +60,7 @@ def main(out, files, labels=None):
             if r is None: bad += 1; continue
             n += 1
             row = (n, *r[:-2], anomalous, r[-2], r[-1])
-            for k, v in zip(SCHEMA.names, row): cols[k].append(v)
+            for k, v in zip(SCHEMA.names, row, strict=False): cols[k].append(v)
     pq.write_table(pa.table(cols, schema=SCHEMA), out)
     print(f"openstack: {n} rows parsed, {bad} skipped -> {out}")
 

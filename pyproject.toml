@@ -1,0 +1,26 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [".venv", ".serenedb", "data", "ledger"]
+
+[tool.ruff.lint]
+# E,F: pycodestyle/pyflakes core. B: flake8-bugbear (real bug patterns). W: pycodestyle warnings.
+select = ["E", "F", "B", "W"]
+ignore = [
+  "E501",  # long lines - tool descriptions, SQL and prompt strings are intentionally
+           # written as single dense lines throughout this codebase (see README style).
+  "E701",  # multiple statements on one line (colon) - this codebase uses `if x: return`
+           # one-liners as a deliberate dense-style convention, not an oversight.
+  "E702",  # same, for semicolon-joined statements (e.g. `conn.commit(); conn.close()`).
+  "E402",  # module-level import not at top of file - several standalone scripts do
+           # `sys.path.insert(...)` before importing the local `server` package, which
+           # requires the import to follow the path fix-up.
+  "E401",  # multiple imports on one line - combined single-line imports (e.g.
+           # `import argparse, json, sys`) are this codebase's deliberate style.
+]
+
+[tool.mypy]
+# Checked over `server/` only (see CI: `mypy server`) - that's the MCP server package
+# this project ships; cli/ui/eval/prep/scripts are demo/tooling scripts out of scope.
+python_version = "3.10"
+ignore_missing_imports = true

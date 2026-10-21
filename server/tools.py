@@ -1,8 +1,8 @@
 """The Incident Lens tools. Plain functions (testable without MCP); server/app.py registers them.
 Every tool: parameterised SQL only, row caps, scope + truncation reported, evidence-ledger entry."""
 import datetime as dt, re
-from . import config, db, ledger
-from .common import (dataset_cfg, resolve_period, where, column_filters, clamp_limit, Tracer, finish, text_predicate, dataset_span)
+from . import config, ledger
+from .common import (dataset_cfg, resolve_period, where, clamp_limit, Tracer, finish, dataset_span)
 
 BUCKETS = {"hour", "day", "week"}
 
