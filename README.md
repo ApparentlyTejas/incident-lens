@@ -37,7 +37,7 @@ Requires Python 3.10+, `curl`, `unzip`. The script starts SereneDB itself either
 git clone https://github.com/ApparentlyTejas/incident-lens.git && cd incident-lens
 ./scripts/setup.sh --sample      # seconds: 2,000-line Loghub samples, good for trying everything
 ./scripts/setup.sh               # full corpus: downloads BGL (709 MB) + OpenStack (58 MB) + Zookeeper (10 MB) from Zenodo, parses, loads, indexes
-pytest -q --asyncio-mode=auto tests    # needs the --sample load (45 tests, numbers checked against plain SQL)
+pytest -q --asyncio-mode=auto tests    # needs the --sample load (62 tests, 99% coverage, numbers checked against plain SQL)
 python3 tests/stdio_smoke.py           # spawns the server like Claude does and calls a tool
 ```
 
@@ -56,7 +56,7 @@ pytest -q --asyncio-mode=auto --cov=server --cov-report=term-missing --cov-repor
 python3 tests/stdio_smoke.py
 ```
 
-`--cov=server` only (not `cli`/`ui`/`eval`/`prep`/`scripts`, which are demo/tooling, not the shipped package); current coverage is ~93%. CI uploads `coverage.xml` + `htmlcov/` as a workflow artifact - no third-party coverage service wired in. Lint/type-check scope is deliberately narrow: `ruff` ignores a handful of pycodestyle rules (`E501`/`E701`/`E702`/`E402`/`E401`, see `pyproject.toml` for why - this codebase's dense one-liner/combined-import style is intentional, not an oversight) and `mypy` only checks `server/`, the package Claude actually imports.
+`--cov=server` only (not `cli`/`ui`/`eval`/`prep`/`scripts`, which are demo/tooling, not the shipped package); current coverage is 99%. CI uploads `coverage.xml` + `htmlcov/` as a workflow artifact - no third-party coverage service wired in. Lint/type-check scope is deliberately narrow: `ruff` ignores a handful of pycodestyle rules (`E501`/`E701`/`E702`/`E402`/`E401`, see `pyproject.toml` for why - this codebase's dense one-liner/combined-import style is intentional, not an oversight) and `mypy` only checks `server/`, the package Claude actually imports.
 
 ## Connect Claude
 
