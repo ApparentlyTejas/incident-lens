@@ -1,6 +1,10 @@
 # Incident Lens
 
 ![CI](https://github.com/ApparentlyTejas/incident-lens/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-server-6B46C1)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-SereneDB-336791?logo=postgresql&logoColor=white)
 
 **An MCP server that gives Claude role-aware, evidence-backed tools over the BGL, OpenStack and Zookeeper logs in SereneDB.**
 The database searches and calculates; Claude explains; every number traces to a query that actually ran - and a tamper-evident ledger can prove it after the fact, not just assert it.
