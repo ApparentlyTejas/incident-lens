@@ -15,6 +15,8 @@ National AI Hackathon 2026 (SchubKI) · challenge "Making Sense of Logs" · part
 
 **Judging this submission?** Jump straight to [How this meets the brief](#how-this-meets-the-brief) for a one-line-per-criterion map from the rubric to exactly where the evidence lives - including both special awards.
 
+![Engineer role answering a real question against the full BGL corpus, with the evidence ledger filling in live on the right](docs/images/console.png)
+
 ## What it does
 
 | Role | Question | Tools Claude picks | Next step it gives |
