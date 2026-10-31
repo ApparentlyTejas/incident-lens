@@ -320,7 +320,7 @@ def verify_ledger_integrity():
     return ledger.verify_chain()
 
 # ---------------------------------------------------------------- generate_report
-_CITE_RE = re.compile(r"\bE-\d{4}\b")
+_CITE_RE = re.compile(r"\bE-\d{4,}\b")  # ids are zero-padded to >=4 digits but grow past E-9999, never shrink
 
 def generate_report(title, body, evidence_ids):
     """Package an already-written answer plus its cited evidence into one shareable markdown

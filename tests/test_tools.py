@@ -185,6 +185,14 @@ def test_generate_report_replays_real_evidence_and_flags_uncited_ids():
     assert a["evidence_id"] in r["markdown"] and str(a["total_matches"]) in r["markdown"]
     assert b["evidence_id"] in r["markdown"]
 
+def test_generate_report_flags_uncited_ids_past_four_digits():
+    # evidence_id is zero-padded to 4 digits but grows past E-9999 once the ledger has that many
+    # entries; the citation regex must not silently stop matching once ids are 5+ digits wide.
+    a = T.count_by("bgl", "level")
+    r = T.generate_report(title="t", evidence_ids=[a["evidence_id"]],
+                          body=f"Observed [{a['evidence_id']}], also mentioned but not attached [E-10000].")
+    assert r["uncited_in_body"] == ["E-10000"]
+
 def test_generate_report_rejects_empty_or_unknown_ids():
     with pytest.raises(ValueError, match="must not be empty"): T.generate_report("t", "b", [])
     with pytest.raises(ValueError, match="unknown evidence_id"): T.generate_report("t", "b", ["E-9999"])
