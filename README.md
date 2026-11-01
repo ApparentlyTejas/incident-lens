@@ -141,6 +141,25 @@ Full generated reference with every input and description: [`docs/TOOLS.md`](doc
 
 Every result uses one envelope: `evidence_id`, `scope` (dataset, absolute period), `filters`, the executed `sql` (parameters inlined for replay), `total_matches`, `returned`, `truncated`, rows/aggregates, and a note that log text is untrusted. Guardrails: parameterised queries only, read-only DB role, default 20 / hard cap 100 rows, 30 s statement timeout, no free-form SQL from the agent. Bad input (an unknown `group_by`, a malformed date, an unknown `evidence_id`) comes back to Claude as a readable error naming the problem, not a bare "tool failed" - the MCP SDK strips detail from *unexpected* exceptions by design, so every deliberate input check raises `ToolError` instead of a plain exception.
 
+## Code architecture
+
+How a tool call moves through the codebase (complements the request sequence diagram above, which is about the network call; this is about the module boundaries):
+
+```mermaid
+flowchart TB
+  A["app.py<br/>MCP tool definitions, ValueError → ToolError"] --> T["tools.py<br/>13 tool implementations"]
+  CFG["config.py<br/>DATASETS, limits"] --> T
+  T --> CM["common.py<br/>dataset_cfg, where/column_filters, Tracer"]
+  CM --> DB["db.py<br/>SereneDB connection, read-only role, retry"]
+  T --> FIN["common.finish()<br/>envelope + ledger.record"]
+  FIN --> LG["ledger.py<br/>hash-chained SQLite ledger"]
+  PR["prompts.py<br/>role prompt templates"] --> A
+  DB --> SDB[("SereneDB")]
+  LG --> SQ[("ledger.db")]
+```
+
+`tools.py` never talks to SereneDB directly - every query goes through `common.py`'s `where()`/`column_filters()` to build parameterised SQL, and a `Tracer` records exactly what ran so `common.finish()` can hand that to the ledger unmodified. This is what makes the evidence ledger trustworthy: it isn't a log a tool writes to afterward, it's fed the literal SQL the `Tracer` captured.
+
 ## Data, schema, ownership
 
 Datasets: **BGL** (Blue Gene/L RAS logs, 4.7M lines, 214 days), **OpenStack** (207,812 nova lines, request ids, inline latency), and **Zookeeper** (74,380 lines from one real ensemble member, 100% parsed, thread-level quorum/leader-election activity). Tables `bgl_logs`, `openstack_logs`, `zookeeper_logs`, `ownership`; inverted indexes `bgl_idx`, `os_idx`, `zk_idx` over message text with a lower-case, non-stemming dictionary (identifiers and error codes stay intact). The index also carries `ts`, level, component, node/service/thread so filters run inside the scan.
