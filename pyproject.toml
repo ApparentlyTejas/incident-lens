@@ -1,3 +1,11 @@
+[project]
+name = "incident-lens"
+version = "0.1.0"
+description = "Role-aware, evidence-backed MCP server over BGL, OpenStack and Zookeeper logs in SereneDB."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+
 [tool.ruff]
 line-length = 120
 target-version = "py310"
